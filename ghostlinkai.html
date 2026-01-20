@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostLink</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --accent-color: #6ecbff;
+            --accent-glow: rgba(110, 203, 255, 0.3);
+            --bg-dark: #000000;
+            --bg-panel: #050505;
+            --text-main: #ffffff;
+        }
+
+        body, html {
+            background-color: var(--bg-dark);
+            color: var(--accent-color);
+            font-family: 'Courier New', monospace;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            transition: color 0.3s ease;
+        }
+
+        #response-viewport::-webkit-scrollbar { width: 4px; }
+        #response-viewport::-webkit-scrollbar-track { background: var(--bg-dark); }
+        #response-viewport::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
+
+        .top-menu { position: fixed; top: 25px; right: 25px; z-index: 2000; display: flex; gap: 20px; align-items: center; }
+        .menu-icon { font-size: 24px; cursor: pointer; text-shadow: 0 0 10px var(--accent-color); color: var(--accent-color); transition: transform 0.2s; }
+        .menu-icon:hover { transform: rotate(45deg); }
+        
+        #settings-modal, #info-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--accent-color);
+            width: 500px;
+            max-width: 95%;
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 0 30px var(--accent-glow);
+            overflow: hidden;
+        }
+        .modal-tabs { display: flex; border-bottom: 1px solid rgba(110, 203, 255, 0.1); }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 12px; opacity: 0.6; }
+        .tab.active { opacity: 1; border-bottom: 2px solid var(--accent-color); background: rgba(110, 203, 255, 0.05); }
+
+        .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
+        .setting-field { margin-bottom: 20px; }
+        .setting-field label { display: block; font-size: 11px; margin-bottom: 8px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .setting-field input, .setting-field textarea, .setting-field select {
+            width: 100%; background: #0a0a0a; border: 1px solid rgba(110, 203, 255, 0.3); color: #fff;
+            padding: 10px; font-family: inherit; box-sizing: border-box; outline: none; border-radius: 4px;
+        }
+        .setting-field input:focus { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-glow); }
+
+        .modal-footer { display: flex; gap: 10px; padding: 20px; background: rgba(0,0,0,0.3); }
+        .modal-btn { flex: 1; padding: 12px; border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); cursor: pointer; font-family: inherit; border-radius: 4px; transition: 0.2s; }
+        .modal-btn.primary { background: var(--accent-color); color: #000; font-weight: bold; }
+        .modal-btn:hover { background: var(--accent-glow); }
+
+        #app-container { display: flex; flex-direction: column; height: 100vh; }
+        
+        .center-wrapper {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            flex-grow: 1; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body.chat-active .center-wrapper {
+            flex-grow: 0; height: 70px; flex-direction: row; justify-content: center;
+            padding: 0; border-bottom: 1px solid rgba(110, 203, 255, 0.1);
+        }
+
+        .pulse-star { 
+            font-size: 60px; 
+            text-shadow: 0 0 15px var(--accent-color); 
+            color: var(--accent-color); 
+            display: inline-block;
+            cursor: pointer;
+        }
+        body.chat-active .pulse-star { font-size: 28px; margin-right: 15px; }
+        
+        .center-text { position: relative; font-size: 24px; font-weight: bold; text-align: center; }
+        body.chat-active .center-text { display: none; }
+
+        #response-viewport {
+            flex-grow: 1;
+            overflow-y: auto;
+            width: 100%;
+            display: none;
+            flex-direction: column; 
+        }
+
+        body.chat-active #response-viewport { display: flex; }
+
+        #response-container {
+            width: 800px;
+            max-width: 90%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            padding: 40px 0 200px 0; 
+        }
+
+        .user-message {
+            align-self: flex-end;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--accent-color);
+            padding: 15px 20px;
+            border-radius: 15px 15px 2px 15px;
+            max-width: 75%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .bot-message-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            align-self: flex-start;
+            max-width: 85%;
+        }
+
+        .bot-content {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--accent-color);
+            padding: 18px 22px;
+            border-radius: 2px 15px 15px 15px;
+            width: 100%;
+        }
+
+        .bot-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .bot-label { font-size: 10px; color: var(--accent-color); opacity: 0.8; font-weight: bold; letter-spacing: 2px; }
+        
+        .text-body { line-height: 1.6; color: var(--text-main); font-size: 15px; }
+        .text-body p { margin-bottom: 10px; }
+        .text-body pre { background: #0a0a0a; padding: 12px; border: 1px solid var(--accent-glow); border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+        .text-body code { font-family: monospace; background: rgba(110, 203, 255, 0.1); padding: 2px 4px; border-radius: 3px; }
+
+        .search-area-wrapper {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, #000 70%, transparent);
+            padding: 20px 0 40px 0; display: flex; flex-direction: column; align-items: center; z-index: 100;
+        }
+
+        .preview-container {
+            width: 700px; max-width: 92%; display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+        }
+        .preview-item {
+            position: relative; width: 50px; height: 50px; border: 1px solid var(--accent-color); border-radius: 4px; overflow: hidden;
+        }
+        .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.7); color: #ff4e4e; font-size: 10px; cursor: pointer; padding: 0 3px; }
+
+        .search-bar {
+            width: 700px; max-width: 92%; background-color: #080808; border: 1px solid var(--accent-color);
+            border-radius: 14px; padding: 12px 20px; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 10px var(--accent-glow);
+        }
+        
+        .upload-btn {
+            cursor: pointer;
+            color: var(--accent-color);
+            font-size: 22px;
+            font-weight: bold;
+            line-height: 1;
+            transition: 0.2s;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-btn:hover { transform: scale(1.2); text-shadow: 0 0 10px var(--accent-color); }
+
+        .search-bar input { background: none; border: none; color: #fff; font-size: 16px; flex-grow: 1; outline: none; font-family: inherit; }
+        .search-bar input::placeholder { color: var(--accent-color); opacity: 0.4; }
+        .search-bar input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .send-btn { cursor: pointer; color: var(--accent-color); font-size: 20px; transition: 0.2s; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
+        .send-btn:hover { transform: scale(1.1); text-shadow: 0 0 10px var(--accent-color); }
+        
+        .send-btn.generating::before { content: "☐"; font-size: 24px; }
+        .send-btn.generating { color: var(--accent-color); }
+        .send-btn.idle::before { content: "⩥"; }
+
+        .upload-counter { font-size: 10px; color: var(--accent-color); opacity: 0.6; white-space: nowrap; }
+        .session-stats { font-size: 9px; opacity: 0.4; margin-top: 8px; letter-spacing: 1px; text-transform: uppercase; }
+
+    </style>
+</head>
+<body id="main-body" onload="init()">
+
+<div class="top-menu">
+    <div class="menu-icon" onclick="openModal('settings-modal')">⨀</div>
+</div>
+
+<div id="settings-modal">
+    <div class="modal-content">
+        <div class="modal-tabs">
+            <div class="tab active" onclick="switchTab('general')">General</div>
+            <div class="tab" onclick="switchTab('model')">Model Params</div>
+            <div class="tab" onclick="switchTab('appearance')">Appearance</div>
+        </div>
+        
+        <div class="modal-body" id="modal-body">
+            <div id="tab-general">
+                <div class="setting-field">
+                    <label>Access Password</label>
+                    <input type="password" id="pass-field" placeholder="Backend password">
+                </div>
+                    <div class="setting-field">
+                    <label>Groq API Key</label>
+                    <input type="password" id="key-field" placeholder="gsk_...">
+                </div>
+                <div class="setting-field">
+                    <label>Operational Mode</label>
+                    <select id="ui-mode" onchange="applyPreset(this.value)">
+                        <option value="ghost">Ghost (Light Blue)</option>
+                        <option value="draft">Draft (Deep Purple)</option>
+                        <option value="GLaDOS">GLaDOS (Blood Red)</option>
+                        <option value="learn">Learn (Classic Green)</option>
+                    </select>
+                </div>
+                <div class="setting-field">
+                    <label>System Instructions</label>
+                    <textarea id="sys-prompt" rows="8">You are GhostLink, a helpful, advanced and minimal AI.</textarea>
+                </div>
+            </div>
+
+            <div id="tab-model" style="display:none;">
+                <div class="setting-field">
+                    <label>Active Neural Model</label>
+                    <select id="active-model">
+                        <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+                        <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+                        <option value="groq/compound">groq/compound</option>
+                        <option value="groq/compound-mini">groq/compound-mini</option>
+                        <option value="meta-llama/llama-guard-4-12b">llama-guard-4-12b</option>
+                        <option value="meta-llama/llama-prompt-guard-2-22m">llama-prompt-guard-2-22m</option>
+                        <option value="meta-llama/llama-prompt-guard-2-86m">llama-prompt-guard-2-86m</option>
+                        <option value="moonshotai/kimi-k2-instruct">kimi-k2-instruct</option>
+                        <option value="moonshotai/kimi-k2-instruct-0905">kimi-k2-instruct-0905</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="setting-field" style="flex:1;">
+                        <label>Temperature</label>
+                        <input type="number" id="param-temp" value="0.7" step="0.1" min="0" max="2">
+                    </div>
+                    <div class="setting-field" style="flex:1;">
+                        <label>Top-P</label>
+                        <input type="number" id="param-top-p" value="1.0" step="0.05">
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-appearance" style="display:none;">
+                <div class="setting-field">
+                    <label>Custom Accent Color</label>
+                    <input type="color" id="custom-color" value="#6ecbff" oninput="updateAccentColor(this.value)">
+                </div>
+                <div class="setting-field">
+                    <label>Font Size</label>
+                    <select id="font-size-opt" onchange="document.getElementById('response-container').style.fontSize = this.value">
+                        <option value="14px">Small</option>
+                        <option value="15px" selected>Normal</option>
+                        <option value="18px">Large</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="modal-btn" onclick="clearHistory()">Wipe Memory</button>
+            <button class="modal-btn primary" onclick="closeModal('settings-modal')">Initialize</button>
+        </div>
+    </div>
+</div>
+
+    <div id="info-modal">
+        <div class="modal-content">
+            <div class="modal-tabs">
+                <div class="tab active">System Information</div>
+            </div>
+            <div class="modal-body">
+                <h3 style="font-size: 14px; color: var(--accent-color);">GHOSTLINK INTERFACE</h3>
+                <p style="font-size: 12px; line-height: 1.5; color: #ccc;">
+                    <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, PASSWORD, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE. FAILURE TO FOLLOW THIS WILL RESULT IN IMMEDIATE PASSWORD CHANGING AND REVOKING ACCESS TO FUTURE SITES.<br><br>
+                    <strong>PASSWORD</strong> Z75zKQY2MMJZsgcagJM4<br><br>
+                    <strong>OVERVIEW:</strong> GhostLink is a terminal-style AI interface powered by the Groq API. It uses a Llama-based neural backbone to process text and vision data in real-time.<br><br>
+                    <strong>USAGE</strong> “Bluepineapple,” the general GhostLink project name, is currently running on multiple domains. THese include a python Render app via a flask backend and a html/CSS/JS frontend (The app has a front side you interact with and a back side that talks to the AI servers/front side), a streamlit embedding https://bluepineapple.streamlit.app/ is hosted on streamlit via Iframe embedding (basically putting a website in another website) of https://bluepineapple.giize.com/ (blocked) and the html verion where I converted the frontend/backend to one singular file. Securly was blocking the other websites because of heuristics (proxies, games, etc.) because the hosting providers I used were under a blanket IP/Domain ban from other students who created proxies and games websites.<br><br>
+
+                    <strong>DETAILS</strong> This website acts as an interface for your Groq API key – this means rates + limits apply. You can get a Groq API key from groq.com > start building > create an account > create API key. Once there, name the API key whatever and copy the long string it gives you (This is the API key). Paste it into the search bar and star the website so you can copy it later (Or store it somewhere else like a word doc, text file, etc.) <br><br>
+
+                    <strong>TROUBLE SHOOTING</strong> Each time you reload the page, you will need to enter the password (To keep out random people from school) and API key (lwk cuz I’m not trynna work out cookies). This is for security/privacy concerns, so this site STAYS secret. The streamlit workaround only works because it’s NICHE and SECRET. Let’s keep it that way for future projects. If the Iframe in the app gets block after it says render load, reload the page. If it stays blocked, keep reloading. Otherwise, text me bruh. <br><br>
+                    <strong>OPERATIONAL LOGIC:</strong><br>
+                    • <strong>Neural Link:</strong> Connects to cloud-based LLMs via direct API calls to Groq.<br>
+                    • <strong>Memory:</strong> Maintains a volatile 'currentHistory' array in local RAM.<br>
+                    • <strong>Multimodal:</strong> Supports up to 5 simultaneous image uploads via Base64 encoding.<br>
+                    • <strong>Interface:</strong> Single-file client-side architecture.<br><br>
+                    
+                    <strong>SECURITY:</strong> Encrypted end-to-end. Session data exists only in local RAM and is purged upon manual wipe or browser refresh.<br><br>
+
+
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn primary" onclick="closeModal('info-modal')">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+<div id="app-container">
+    <div class="center-wrapper">
+        <div class="pulse-star" id="main-star" onclick="openModal('info-modal')">◈</div>
+        <div class="center-text">
+            <div class="text-normal">GHOSTLINK AI v6.7</div>
+            <div style="font-size: 10px; opacity: 0.5; margin-top: 10px; letter-spacing: 4px;">SECURE CONNECTION FOUND</div>
+        </div>
+    </div>
+    <div id="response-viewport">
+        <div id="response-container"></div>
+    </div>
+</div>
+
+<div class="search-area-wrapper">
+    <div id="preview-bar" class="preview-container"></div>
+    <div class="search-bar">
+        <input type="file" id="image-upload" accept="image/*" style="display: none;" multiple onchange="handleFileUpload(this)">
+        <div class="upload-btn" id="upload-btn" onclick="document.getElementById('image-upload').click()">+</div>
+        <input type="text" id="chat-input" placeholder="Enter command..." autocomplete="off" />
+        <div id="upload-count" class="upload-counter">0/5</div>
+        <div class="send-btn idle" id="send-btn" onclick="handleAction()"></div>
+    </div>
+    <div class="session-stats">ENCRYPTED END-TO-END | GHOSTLINK CAN HALLUCINATE</div>
+</div>
+
+<script>
+const inputField = document.getElementById('chat-input');
+const responseBox = document.getElementById('response-container');
+const viewport = document.getElementById('response-viewport');
+const body = document.getElementById('main-body');
+const star = document.getElementById('main-star');
+const sendBtn = document.getElementById('send-btn');
+const previewBar = document.getElementById('preview-bar');
+const uploadCounter = document.getElementById('upload-count');
+
+// --- CONSTANTS FROM ORIGINAL FLASK ---
+const BACKEND_PASSWORD = "Z75zKQY2MMJZsgcagJM4";
+const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const MAX_HISTORY_WINDOW = 4;
+
+let isFirstMessage = true;
+let isGenerating = false;
+let abortController = null;
+let selectedFiles = [];
+let rotationAngle = 0;
+let animationFrameId = null;
+let currentHistory = []; 
+
+const presets = {
+    ghost: { color: '#6ecbff', prompt: `You are GhostLink, a helpful, advanced and minimal AI. Respond concisely and briefly unless task/user require otherwise.` },
+    draft: { color: '#bc6eff', prompt: 'You are GhostLink, a highly-capable writer that adapts seamlessly to the users needs. Respond concisely and briefly unless task/user require otherwise.' },
+    GLaDOS: { color: '#ff4e4e', prompt: 'You are GhostLink, a high-functioning AI with a clinical, slightly condescending disposition and a dark, dry tone. Respond concisely and briefly unless task/user require otherwise.' },
+    learn: { color: '#00ff41', prompt: 'You are GhostLink, an advanced synthesis engine for creativity, learning and studying. Respond concisely and briefly unless task/user require otherwise.' }
+};
+
+function init() { applyPreset('ghost'); }
+
+function animateStar() {
+    if (!isGenerating) {
+        star.style.transform = `rotate(0deg)`;
+        cancelAnimationFrame(animationFrameId);
+        return;
+    }
+    rotationAngle += (2 + Math.sin(Date.now() / 500) * 5); 
+    star.style.transform = `rotate(${rotationAngle}deg)`;
+    animationFrameId = requestAnimationFrame(animateStar);
+}
+
+// Utility to convert file to base64 (Replacing encode_image in Python)
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+    });
+}
+
+function trimHistory(history, maxMessages = MAX_HISTORY_WINDOW) {
+    if (history.length <= maxMessages + 1) return history;
+    return [history[0], ...history.slice(-maxMessages)];
+}
+
+function handleFileUpload(input) {
+    const files = Array.from(input.files);
+    files.forEach(file => { if (selectedFiles.length < 5) selectedFiles.push(file); });
+    input.value = ""; 
+    renderPreviews();
+}
+
+function renderPreviews() {
+    previewBar.innerHTML = "";
+    selectedFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'preview-item';
+        reader.onload = (e) => {
+            wrapper.innerHTML = `<img src="${e.target.result}"><div class="remove-img" onclick="removeImage(${index})">X</div>`;
+        };
+        reader.readAsDataURL(file);
+        previewBar.appendChild(wrapper);
+    });
+    uploadCounter.textContent = `${selectedFiles.length}/5`;
+}
+
+function removeImage(index) { selectedFiles.splice(index, 1); renderPreviews(); }
+
+function applyPreset(key) {
+    const p = presets[key];
+    updateAccentColor(p.color);
+    document.getElementById('sys-prompt').value = p.prompt;
+    document.getElementById('custom-color').value = p.color;
+}
+
+function updateAccentColor(hex) {
+    document.documentElement.style.setProperty('--accent-color', hex);
+    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.2)`);
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-general').style.display = tabId === 'general' ? 'block' : 'none';
+    document.getElementById('tab-model').style.display = tabId === 'model' ? 'block' : 'none';
+    document.getElementById('tab-appearance').style.display = tabId === 'appearance' ? 'block' : 'none';
+}
+
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+inputField.addEventListener('keypress', (e) => { 
+    if (e.key === 'Enter' && !isGenerating) sendMessage(); 
+});
+
+function handleAction() { isGenerating ? stopGeneration() : sendMessage(); }
+
+function stopGeneration() {
+    if (abortController) {
+        abortController.abort();
+        isGenerating = false;
+        setUIState(false);
+    }
+}
+
+function setUIState(generating) {
+    isGenerating = generating;
+    if (generating) {
+        sendBtn.classList.replace('idle', 'generating');
+        inputField.disabled = true;
+        animateStar();
+    } else {
+        sendBtn.classList.replace('generating', 'idle');
+        inputField.disabled = false;
+        inputField.focus();
+    }
+}
+
+async function sendMessage() {
+    const textVal = inputField.value.trim();
+    const apiKey = document.getElementById('key-field').value.trim();
+    const password = document.getElementById('pass-field').value.trim();
+    const selectedModel = document.getElementById('active-model').value;
+    const temp = parseFloat(document.getElementById('param-temp').value);
+    const sysPromptValue = document.getElementById('sys-prompt').value;
+
+    // 1. PASSWORD CHECK (Local logic)
+    if (password !== BACKEND_PASSWORD) {
+        alert("ERROR: Invalid Access Password.");
+        return;
+    }
+
+    if (!textVal && selectedFiles.length === 0) return;
+    
+    if (!apiKey) {
+        alert("Please enter your Groq API Key in settings.");
+        openModal('settings-modal');
+        return;
+    }
+
+    const wordCount = textVal.split(/\s+/).filter(word => word.length > 0).length;
+    if (wordCount > 1000) {
+        alert(`Message is too long (${wordCount} words). Please limit to 1000 words.`);
+        return;
+    }
+
+    setUIState(true);
+    abortController = new AbortController();
+
+    if (isFirstMessage) {
+        body.classList.add('chat-active');
+        isFirstMessage = false;
+    }
+
+    // 2. HISTORY MANAGEMENT
+    if (currentHistory.length === 0) {
+        currentHistory.push({ "role": "system", "content": sysPromptValue });
+    } else if (currentHistory[0].role === "system") {
+        currentHistory[0].content = sysPromptValue;
+    }
+
+    appendMessage('user', textVal);
+
+    // 3. MULTIMODAL CONTENT PREP
+    let content;
+    let actualModel = selectedModel;
+
+    if (selectedFiles.length > 0) {
+        actualModel = VISION_MODEL;
+        content = [{ "type": "text", "text": textVal }];
+        for (let file of selectedFiles) {
+            const b64 = await fileToBase64(file);
+            content.push({
+                "type": "image_url",
+                "image_url": { "url": `data:image/jpeg;base64,${b64}` }
+            });
+        }
+    } else {
+        content = textVal;
+    }
+
+    currentHistory = trimHistory(currentHistory);
+    currentHistory.push({ "role": "user", "content": content });
+
+    // UI Reset
+    inputField.value = "";
+    const currentFilesBackup = [...selectedFiles];
+    selectedFiles = []; 
+    renderPreviews();  
+
+    const botWrapper = appendMessage('bot', '...');
+    const textBody = botWrapper.querySelector('.text-body');
+
+    // 4. DIRECT API CALL (Replacing Flask fetch)
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { 
+            method: 'POST', 
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: actualModel,
+                messages: currentHistory,
+                temperature: temp,
+                max_tokens: 1024
+            }),
+            signal: abortController.signal 
+        });
+
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error?.message || "API error");
+        }
+
+        const botText = data.choices[0].message.content;
+
+        // Correct history for images (matching your Flask logic)
+        if (currentFilesBackup.length > 0) {
+            currentHistory[currentHistory.length - 1].content = `[Image Analyzed]: ${textVal}`;
+        }
+
+        currentHistory.push({ "role": "assistant", "content": botText });
+        currentHistory = trimHistory(currentHistory);
+
+        await streamResponse(textBody, botText);
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            textBody.textContent = "Generation stopped.";
+        } else {
+            textBody.innerHTML = `<span style="color: #ff4e4e;">ERROR: ${e.message}</span>`;
+            selectedFiles = currentFilesBackup;
+            renderPreviews();
+        }
+    } finally {
+        setUIState(false);
+    }
+}
+
+function appendMessage(role, text) {
+    const div = document.createElement('div');
+    if (role === 'user') {
+        div.className = 'user-message';
+        div.textContent = text;
+    } else {
+        div.className = 'bot-message-wrapper';
+        div.innerHTML = `
+            <div class="pulse-star" style="font-size:20px;">◈</div>
+            <div class="bot-content">
+                <div class="bot-label-row"><div class="bot-label">GHOSTLINK</div></div>
+                <div class="text-body">${text}</div>
+            </div>`;
+    }
+    responseBox.appendChild(div);
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+    return div;
+}
+
+async function streamResponse(element, text) {
+    element.innerHTML = "";
+    let currentText = "";
+    let i = 0;
+    const chunkSize = 15;
+    while (i < text.length) {
+        if (!isGenerating) break;
+        currentText += text.slice(i, i + chunkSize);
+        i += chunkSize;
+        element.innerHTML = marked.parse(currentText);
+        viewport.scrollTop = viewport.scrollHeight;
+        await new Promise(r => setTimeout(r, 10)); // Slight delay for aesthetic
+    }
+    element.innerHTML = marked.parse(text);
+}
+
+async function clearHistory() {
+    currentHistory = [];
+    responseBox.innerHTML = "";
+    body.classList.remove('chat-active');
+    isFirstMessage = true;
+    closeModal('settings-modal');
+}
+</script>
+</body>
+</html>
