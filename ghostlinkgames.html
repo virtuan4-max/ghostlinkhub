@@ -945,8 +945,20 @@ listZones();
 const schoolList = ["deledao", "goguardian", "lightspeed", "linewize", "securly", ".edu/"];
 
 function isBlockedDomain(url) {
-    const domain = new URL(url, location.origin).hostname + "/";
-    return schoolList.some(school => domain.includes(school));
+    // 1. Safety check: if url is missing, don't try to parse it
+    if (!url) return false;
+
+    try {
+        // 2. Try to create the URL object
+        const domain = new URL(url, window.location.origin).hostname.toLowerCase();
+        
+        // 3. Check against your schoolList
+        return schoolList.some(school => domain.includes(school.toLowerCase()));
+    } catch (e) {
+        // 4. If the URL is invalid (like "javascript:void(0)"), just don't block it
+        console.warn("Skipping invalid URL check:", url);
+        return false;
+    }
 }
 
 const originalFetch = window.fetch;
