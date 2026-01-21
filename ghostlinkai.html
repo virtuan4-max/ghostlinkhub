@@ -33,7 +33,7 @@
         .menu-icon { font-size: 24px; cursor: pointer; text-shadow: 0 0 10px var(--accent-color); color: var(--accent-color); transition: transform 0.2s; }
         .menu-icon:hover { transform: rotate(45deg); }
         
-        #settings-modal, #info-modal {
+        #settings-modal, #info-modal, #api-setup-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -200,12 +200,38 @@
         .upload-counter { font-size: 10px; color: var(--accent-color); opacity: 0.6; white-space: nowrap; }
         .session-stats { font-size: 9px; opacity: 0.4; margin-top: 8px; letter-spacing: 1px; text-transform: uppercase; }
 
+        .api-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body id="main-body" onload="init()">
 
 <div class="top-menu">
     <div class="menu-icon" onclick="openModal('settings-modal')">⨀</div>
+</div>
+
+<div id="api-setup-modal">
+    <div class="modal-content">
+        <div class="modal-tabs">
+            <div class="tab active">System Activation Required</div>
+        </div>
+        <div class="modal-body">
+            <div class="setting-field">
+                <p style="font-size: 13px; color: #ccc; line-height: 1.6;">
+                    To initialize <strong>GHOSTLINK</strong>, you must provide a valid Groq API Key. This key is stored locally in your browser.
+                </p>
+                <ol style="font-size: 12px; color: var(--accent-color); padding-left: 20px;">
+                    <li>Go to <a href="https://console.groq.com/keys" target="_blank" class="api-link">console.groq.com</a></li>
+                    <li>Create a free account and click "Create API Key"</li>
+                    <li>Copy and paste the key below:</li>
+                </ol>
+                <label>Groq API Key</label>
+                <input type="password" id="setup-key-field" placeholder="gsk_...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn primary" onclick="saveInitialKey()">Activate Interface</button>
+        </div>
+    </div>
 </div>
 
 <div id="settings-modal">
@@ -219,12 +245,8 @@
         <div class="modal-body" id="modal-body">
             <div id="tab-general">
                 <div class="setting-field">
-                    <label>Access Password</label>
-                    <input type="password" id="pass-field" placeholder="Backend password">
-                </div>
-                    <div class="setting-field">
                     <label>Groq API Key</label>
-                    <input type="password" id="key-field" placeholder="gsk_...">
+                    <input type="password" id="key-field" placeholder="gsk_..." onchange="saveApiKey(this.value)">
                 </div>
                 <div class="setting-field">
                     <label>Operational Mode</label>
@@ -286,7 +308,7 @@
 
         <div class="modal-footer">
             <button class="modal-btn" onclick="clearHistory()">Wipe Memory</button>
-            <button class="modal-btn primary" onclick="closeModal('settings-modal')">Initialize</button>
+            <button class="modal-btn primary" onclick="closeModal('settings-modal')">Save & Close</button>
         </div>
     </div>
 </div>
@@ -299,23 +321,16 @@
             <div class="modal-body">
                 <h3 style="font-size: 14px; color: var(--accent-color);">GHOSTLINK INTERFACE</h3>
                 <p style="font-size: 12px; line-height: 1.5; color: #ccc;">
-                    <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, PASSWORD, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE. FAILURE TO FOLLOW THIS WILL RESULT IN IMMEDIATE PASSWORD CHANGING AND REVOKING ACCESS TO FUTURE SITES.<br><br>
-                    <strong>PASSWORD</strong> Z75zKQY2MMJZsgcagJM4<br><br>
+                    <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE.<br><br>
                     <strong>OVERVIEW:</strong> GhostLink is a terminal-style AI interface powered by the Groq API. It uses a Llama-based neural backbone to process text and vision data in real-time.<br><br>
-                    <strong>USAGE</strong> “Bluepineapple,” the general GhostLink project name, is currently running on multiple domains. THese include a python Render app via a flask backend and a html/CSS/JS frontend (The app has a front side you interact with and a back side that talks to the AI servers/front side), a streamlit embedding https://bluepineapple.streamlit.app/ is hosted on streamlit via Iframe embedding (basically putting a website in another website) of https://bluepineapple.giize.com/ (blocked) and the html verion where I converted the frontend/backend to one singular file. Securly was blocking the other websites because of heuristics (proxies, games, etc.) because the hosting providers I used were under a blanket IP/Domain ban from other students who created proxies and games websites.<br><br>
-
-                    <strong>DETAILS</strong> This website acts as an interface for your Groq API key – this means rates + limits apply. You can get a Groq API key from groq.com > start building > create an account > create API key. Once there, name the API key whatever and copy the long string it gives you (This is the API key). Paste it into the search bar and star the website so you can copy it later (Or store it somewhere else like a word doc, text file, etc.) <br><br>
-
-                    <strong>TROUBLE SHOOTING</strong> Each time you reload the page, you will need to enter the password (To keep out random people from school) and API key (lwk cuz I’m not trynna work out cookies). This is for security/privacy concerns, so this site STAYS secret. The streamlit workaround only works because it’s NICHE and SECRET. Let’s keep it that way for future projects. If the Iframe in the app gets block after it says render load, reload the page. If it stays blocked, keep reloading. Otherwise, text me bruh. <br><br>
+                    <strong>USAGE:</strong> This website acts as an interface for your Groq API key – this means rates + limits apply. Your key is stored locally on this browser. <br><br>
                     <strong>OPERATIONAL LOGIC:</strong><br>
                     • <strong>Neural Link:</strong> Connects to cloud-based LLMs via direct API calls to Groq.<br>
                     • <strong>Memory:</strong> Maintains a volatile 'currentHistory' array in local RAM.<br>
                     • <strong>Multimodal:</strong> Supports up to 5 simultaneous image uploads via Base64 encoding.<br>
                     • <strong>Interface:</strong> Single-file client-side architecture.<br><br>
-                    
                     <strong>SECURITY:</strong> Encrypted end-to-end. Session data exists only in local RAM and is purged upon manual wipe or browser refresh.<br><br>
-
-
+                    <strong>SECRET</strong> Yes bro it's not v6.7 no I'm not gonna 'grow up'💔🥀
                 </p>
             </div>
             <div class="modal-footer">
@@ -359,8 +374,6 @@ const sendBtn = document.getElementById('send-btn');
 const previewBar = document.getElementById('preview-bar');
 const uploadCounter = document.getElementById('upload-count');
 
-// --- CONSTANTS FROM ORIGINAL FLASK ---
-const BACKEND_PASSWORD = "Z75zKQY2MMJZsgcagJM4";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const MAX_HISTORY_WINDOW = 4;
 
@@ -373,13 +386,36 @@ let animationFrameId = null;
 let currentHistory = []; 
 
 const presets = {
-    ghost: { color: '#6ecbff', prompt: `You are GhostLink, a helpful, advanced and minimal AI. Respond concisely and briefly unless task/user require otherwise.` },
-    draft: { color: '#bc6eff', prompt: 'You are GhostLink, a highly-capable writer that adapts seamlessly to the users needs. Respond concisely and briefly unless task/user require otherwise.' },
-    GLaDOS: { color: '#ff4e4e', prompt: 'You are GhostLink, a high-functioning AI with a clinical, slightly condescending disposition and a dark, dry tone. Respond concisely and briefly unless task/user require otherwise.' },
-    learn: { color: '#00ff41', prompt: 'You are GhostLink, an advanced synthesis engine for creativity, learning and studying. Respond concisely and briefly unless task/user require otherwise.' }
+    ghost: { color: '#6ecbff', prompt: `You are GhostLink, a helpful, and minimal AI` },
+    draft: { color: '#bc6eff', prompt: 'You are GhostLink, a highly-capable writer AI' },
+    GLaDOS: { color: '#ff4e4e', prompt: 'You are GhostLink, a high-functioning AI with a cynical/condescending/dark tone.' },
+    learn: { color: '#00ff41', prompt: 'You are GhostLink, an AI for creativity, learning and studying.' }
 };
 
-function init() { applyPreset('ghost'); }
+function init() { 
+    applyPreset('ghost'); 
+    const savedKey = localStorage.getItem('groq_api_key');
+    if (savedKey) {
+        document.getElementById('key-field').value = savedKey;
+    } else {
+        openModal('api-setup-modal');
+    }
+}
+
+function saveInitialKey() {
+    const key = document.getElementById('setup-key-field').value.trim();
+    if (key.startsWith('gsk_')) {
+        saveApiKey(key);
+        document.getElementById('key-field').value = key;
+        closeModal('api-setup-modal');
+    } else {
+        alert("Please enter a valid Groq API key (starts with gsk_)");
+    }
+}
+
+function saveApiKey(val) {
+    localStorage.setItem('groq_api_key', val);
+}
 
 function animateStar() {
     if (!isGenerating) {
@@ -392,7 +428,6 @@ function animateStar() {
     animationFrameId = requestAnimationFrame(animateStar);
 }
 
-// Utility to convert file to base64 (Replacing encode_image in Python)
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -485,22 +520,15 @@ function setUIState(generating) {
 async function sendMessage() {
     const textVal = inputField.value.trim();
     const apiKey = document.getElementById('key-field').value.trim();
-    const password = document.getElementById('pass-field').value.trim();
     const selectedModel = document.getElementById('active-model').value;
     const temp = parseFloat(document.getElementById('param-temp').value);
     const sysPromptValue = document.getElementById('sys-prompt').value;
 
-    // 1. PASSWORD CHECK (Local logic)
-    if (password !== BACKEND_PASSWORD) {
-        alert("ERROR: Invalid Access Password.");
-        return;
-    }
-
     if (!textVal && selectedFiles.length === 0) return;
     
     if (!apiKey) {
-        alert("Please enter your Groq API Key in settings.");
-        openModal('settings-modal');
+        alert("Please enter your Groq API Key.");
+        openModal('api-setup-modal');
         return;
     }
 
@@ -518,7 +546,6 @@ async function sendMessage() {
         isFirstMessage = false;
     }
 
-    // 2. HISTORY MANAGEMENT
     if (currentHistory.length === 0) {
         currentHistory.push({ "role": "system", "content": sysPromptValue });
     } else if (currentHistory[0].role === "system") {
@@ -527,7 +554,6 @@ async function sendMessage() {
 
     appendMessage('user', textVal);
 
-    // 3. MULTIMODAL CONTENT PREP
     let content;
     let actualModel = selectedModel;
 
@@ -548,7 +574,6 @@ async function sendMessage() {
     currentHistory = trimHistory(currentHistory);
     currentHistory.push({ "role": "user", "content": content });
 
-    // UI Reset
     inputField.value = "";
     const currentFilesBackup = [...selectedFiles];
     selectedFiles = []; 
@@ -557,7 +582,6 @@ async function sendMessage() {
     const botWrapper = appendMessage('bot', '...');
     const textBody = botWrapper.querySelector('.text-body');
 
-    // 4. DIRECT API CALL (Replacing Flask fetch)
     try {
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { 
             method: 'POST', 
@@ -582,7 +606,6 @@ async function sendMessage() {
 
         const botText = data.choices[0].message.content;
 
-        // Correct history for images (matching your Flask logic)
         if (currentFilesBackup.length > 0) {
             currentHistory[currentHistory.length - 1].content = `[Image Analyzed]: ${textVal}`;
         }
@@ -634,7 +657,7 @@ async function streamResponse(element, text) {
         i += chunkSize;
         element.innerHTML = marked.parse(currentText);
         viewport.scrollTop = viewport.scrollHeight;
-        await new Promise(r => setTimeout(r, 10)); // Slight delay for aesthetic
+        await new Promise(r => setTimeout(r, 10));
     }
     element.innerHTML = marked.parse(text);
 }
