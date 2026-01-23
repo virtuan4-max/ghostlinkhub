@@ -367,7 +367,7 @@
     </main>
 
     <script>
-        const words = ["unrestricted access.", "beauty.", "Aperture Science.", "the future.", "the silent network.", "GhostLink.", "perfection.", "the OASIS.", "blueeeeeee.", "the simulation.", "THE NETHER.", "Nowhere.", "anti-blocking.", "chicken stars.", "pure freedom."];
+        const words = ["GhostLink.", "beauty.", "the portal.", "the future.", "gaming.", "the hub ;).", "perfection.", "the OASIS.", "blueeeeeee.", "quality.", "THE NETHER.", "Nowhere.", ".", "vigilance.", "freedom."];
         
         const tabPresets = [
             { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
@@ -378,41 +378,43 @@
             { name: "Canvas", title: "Dashboard", icon: "https://du11hjcvx0uqb.cloudfront.net/br/dist/images/favicon-e10d657a73.ico" }
         ];
 
-        // --- NAVIGATION & DYNAMIC LOADING ---
         async function nav(page) {
             const frame = document.getElementById('app-frame');
             const home = document.getElementById('home-content');
             const settings = document.getElementById('settings-view');
             const hud = document.getElementById('home-hud');
-            
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById('nav-' + page)?.classList.add('active');
-
             [home, settings, frame, hud].forEach(el => el.style.display = 'none');
-
-            if(page === 'home') {
+            if (page === 'home') {
                 home.style.display = 'flex';
                 hud.style.display = 'block'; 
             } else if (page === 'settings') {
                 settings.style.display = 'block';
-            } else if (page === 'ai' || page === 'games') {
+            } else if (page === 'ai' || page === 'games' || page === 'proxy') {
                 frame.style.display = 'block';
-                const url = page === 'ai' 
-                    ? 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/ghostlinkai.html' 
-                    : 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/ghostlinkgames.html';
-                try {
-                    const response = await fetch(url);
-                    const code = await response.text();
-                    const blob = new Blob([code], { type: 'text/html' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    frame.src = blobUrl;
-                } catch (err) {
-                    console.error(`Failed to load ${page} code:`, err);
-                    frame.srcdoc = `<h1>Error loading ${page} Module</h1><p>Connection to CDN failed.</p>`;
-                }
-            } else {
-                frame.style.display = 'block';
-                if (page === 'proxy') frame.src = 'proxy.html';
+                //const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/';
+                const fileMap = {
+                //    'ai': 'ghostlinkai.html',
+                //    'games': 'ghostlinkgames.html',
+                //    'proxy': 'proxy.html'
+                };
+                const targetUrl = `${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`;
+                fetch(targetUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Could not fetch ${page}`);
+                        return response.text();
+                    })
+                    .then(htmlContent => {
+                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        frame.srcdoc = htmlContent;
+                    })
+                    .catch(err => {
+                        console.error('CDN Load Error:', err);
+
+                        frame.removeAttribute('srcdoc');
+                        frame.src = targetUrl;
+                    });
             }
         }
 
