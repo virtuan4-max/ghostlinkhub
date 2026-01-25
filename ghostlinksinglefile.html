@@ -14,18 +14,36 @@
             --border: rgba(110, 203, 255, 0.08);
             --font: 'Courier New', monospace;
             --card-bg: rgba(255, 255, 255, 0.03);
+            --bg-image: none;
+            --bg-blur: 0px;
+            --bg-brightness: 100%;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg);
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: white;
             font-family: var(--font);
             display: flex;
             height: 100vh;
             overflow: hidden;
             transition: background 0.3s ease;
+            position: relative;
+        }
+
+        /* Background Overlay for blur/brightness */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: inherit;
+            filter: blur(var(--bg-blur)) brightness(var(--bg-brightness));
+            z-index: -1;
         }
 
         /* --- SIDEBAR --- */
@@ -39,6 +57,7 @@
             padding: 30px 0;
             transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
+            backdrop-filter: blur(10px);
         }
 
         .sidebar:hover { width: 220px; }
@@ -51,8 +70,8 @@
             cursor: default;
         }
 
-        .nav-group { width: 100%; flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
-        .nav-group::-webkit-scrollbar { width: 0px; }
+        .nav-group { width: 100%; flex-grow: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+
 
         .nav-item {
             width: 100%;
@@ -66,6 +85,13 @@
             white-space: nowrap;
             overflow: hidden;
             position: relative;
+            user-select: none;
+        }
+
+        /* Drag-and-drop styling */
+        .nav-item.dragging {
+            opacity: 0.5;
+            background: var(--accent-glow);
         }
 
         .nav-item::before {
@@ -89,6 +115,7 @@
             stroke: currentColor;
             stroke-width: 2;
             fill: none;
+            pointer-events: none;
         }
 
         .nav-item span { 
@@ -96,6 +123,7 @@
             left: 72px;
             opacity: 0; 
             transition: opacity 0.1s; 
+            pointer-events: none;
         }
 
         .sidebar:hover .nav-item span { opacity: 1; }
@@ -103,10 +131,16 @@
         .nav-item.active { color: black; }
         .nav-item.active svg { stroke: black; }
 
-        .sidebar-bottom { width: 100%; border-top: 1px solid var(--border); padding-top: 10px; }
+        .sidebar-bottom { 
+            width: 100%; 
+            border-top: 1px solid var(--border); 
+            padding-top: 10px;
+            display: flex;
+            flex-direction: column;
+        }
 
         /* --- CONTENT VIEWS --- */
-        .main-view { flex-grow: 1; position: relative; display: flex; flex-direction: column; }
+        .main-view { flex-grow: 1; position: relative; display: flex; flex-direction: column; z-index: 1; }
 
         .view-section {
             height: 100%;
@@ -156,6 +190,7 @@
             flex-direction: column;
             gap: 15px;
             transition: 0.2s;
+            backdrop-filter: blur(5px);
         }
 
         .app-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
@@ -185,7 +220,7 @@
         /* --- SEARCH --- */
         .search-bar {
             width: 100%;
-            background: #111;
+            background: var(--bg);
             border: 1px solid var(--border);
             padding: 15px 20px;
             border-radius: 12px;
@@ -204,14 +239,21 @@
             border-radius: 16px;
             padding: 25px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
         }
 
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
 
-        textarea, input[type="text"], select {
+        textarea, input[type="text"], input[type="number"], select {
             width: 100%;
-            background: #111;
+            background: var(--bg);
             border: 1px solid var(--border);
             padding: 12px;
             border-radius: 8px;
@@ -226,7 +268,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
             gap: 10px;
-            background: #111;
+            background: var(--bg);
             padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--border);
@@ -280,6 +322,7 @@
             transition: 0.2s;
             margin-top: 10px;
         }
+        .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
 
         #app-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: none; background: var(--bg); }
 
@@ -290,6 +333,7 @@
             padding: 15px; border-radius: 12px; font-size: 11px; color: var(--text-dim);
             line-height: 2; pointer-events: none; z-index: 5; min-width: 160px;
             display: block;
+            backdrop-filter: blur(5px);
         }
         .status-hud b { color: var(--accent); }
 
@@ -297,6 +341,15 @@
         .bat-shell { width: 35px; height: 18px; border: 2px solid var(--text-dim); border-radius: 4px; position: relative; padding: 2px; }
         .bat-shell::after { content: ''; position: absolute; right: -5px; top: 4px; width: 3px; height: 6px; background: var(--text-dim); border-radius: 0 2px 2px 0; }
         .bat-level { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+        .shortcut-input {
+            text-align: center;
+            font-weight: bold;
+            color: var(--accent);
+            cursor: pointer;
+            caret-color: transparent;
+        }
+        .shortcut-input:focus { background: var(--accent-glow); }
 
         .error-msg { color: #ff4444; font-size: 0.75rem; margin-top: 5px; display: none; }
 
@@ -311,44 +364,17 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+
     </style>
 </head>
 <body>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="main-sidebar">
         <div class="logo-box">◈</div>
-        <div class="nav-group" id="sidebar-nav">
-            <div id="nav-home" class="nav-item active" onclick="nav('home')">
-                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <span>Home</span>
+        <div class="nav-group" id="sidebar-nav-top">
             </div>
-            <div id="nav-games" class="nav-item" onclick="nav('games')">
-                <svg viewBox="0 0 24 24"><rect x="2" width="20" height="12" rx="2"/><path d="M6 12v4"/><path d="M10 12v4"/><path d="M14 12v4"/><path d="M18 12v4"/></svg>
-                <span>Games</span>
+        <div class="sidebar-bottom" id="sidebar-nav-bottom">
             </div>
-            <div id="nav-ai" class="nav-item" onclick="nav('ai')">
-                <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                <span>AI Terminal</span>
-            </div>
-            <div id="nav-proxy" class="nav-item" onclick="nav('proxy')">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                <span>Proxy</span>
-            </div>
-        </div>
-        <div class="sidebar-bottom">
-            <div id="nav-customapps" class="nav-item" onclick="nav('customapps')">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 14h7v7H3z"/></svg>
-                <span>Custom Apps</span>
-            </div>
-            <div id="nav-marketplace" class="nav-item" onclick="nav('marketplace')">
-                <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                <span>Marketplace</span>
-            </div>
-            <div id="nav-settings" class="nav-item" onclick="nav('settings')">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span>Settings</span>
-            </div>
-        </div>
     </aside>
 
     <div class="status-hud" id="home-hud">
@@ -443,12 +469,33 @@
                     <label>Presets</label>
                     <div class="preset-container" id="preset-list"></div>
                 </div>
+
                 <div class="settings-card">
-                    <h3>Visuals</h3>
+                    <h3>Visuals & Background</h3>
                     <div class="input-group">
-                        <label>Accent Hex</label>
+                        <label>Accent Color</label>
                         <input type="text" id="theme-color" value="#6ecbff" oninput="applyTheme()">
                         <input type="color" id="theme-picker" value="#6ecbff" style="margin-top:10px; width:100%; border:none; height:35px; border-radius:8px; cursor:pointer;" oninput="syncColor(this.value)">
+                    </div>
+                    <div class="input-group">
+                        <label>Background Color</label>
+                        <input type="color" id="bg-picker" value="#000000" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer;" oninput="applyBackground('color', this.value)">
+                    </div>
+                    <div class="input-group">
+                        <label>Custom Wallpaper</label>
+                        <input type="text" id="bg-url" placeholder="Image URL" oninput="applyBackground('url', this.value)">
+                        <button class="btn-small" onclick="document.getElementById('bg-upload').click()" style="margin-top:10px; width:100%;">UPLOAD IMAGE</button>
+                        <input type="file" id="bg-upload" hidden accept="image/*" onchange="handleBgUpload(this)">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label>Blur (px)</label>
+                            <input type="number" id="bg-blur-input" value="0" min="0" max="50" oninput="applyBackground('blur', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Brightness (%)</label>
+                            <input type="number" id="bg-bright-input" value="100" min="0" max="200" oninput="applyBackground('brightness', this.value)">
+                        </div>
                     </div>
                     <div class="input-group">
                         <label>Font Family</label>
@@ -459,8 +506,36 @@
                         </select>
                     </div>
                 </div>
+
+                <div class="settings-card">
+                    <h3>Keyboard Shortcuts</h3>
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 15px;">Click a box and press a key to rebind. Alt + Key.</p>
+                    <div class="input-group">
+                        <label>Open Home (Alt + ?)</label>
+                        <input type="text" class="shortcut-input" id="sc-home" readonly onclick="captureShortcut('home')">
+                    </div>
+                    <div class="input-group">
+                        <label>Open Games (Alt + ?)</label>
+                        <input type="text" class="shortcut-input" id="sc-games" readonly onclick="captureShortcut('games')">
+                    </div>
+                    <div class="input-group">
+                        <label>Panic Key (Immediate Cloak)</label>
+                        <input type="text" class="shortcut-input" id="sc-panic" readonly onclick="captureShortcut('panic')">
+                    </div>
+                    <button class="btn-small" onclick="resetShortcuts()" style="width:100%">RESET SHORTCUTS</button>
+                </div>
+
+                <div class="settings-card">
+                    <h3>System Management</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">Export your apps and settings to a JSON file or import them from another device.</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-start" onclick="exportData()" style="margin-top:0;">EXPORT CONFIG</button>
+                        <button class="btn-start" onclick="document.getElementById('import-file').click()" style="margin-top:0; background:#333; color:white;">IMPORT CONFIG</button>
+                        <input type="file" id="import-file" hidden accept=".json" onchange="importData(this)">
+                        <button class="btn-start" style="background:#ef4444; color:white; margin-top:20px;" onclick="resetSettings()">FACTORY RESET</button>
+                    </div>
+                </div>
             </div>
-            <button class="btn-start" style="background:#ef4444; color:white;" onclick="resetSettings()">FACTORY RESET</button>
         </section>
 
         <iframe id="app-frame"></iframe>
@@ -506,16 +581,33 @@
             `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
         ];
 
+        // Static Page Data for Sorting
+        const systemPages = [
+            { id: 'home', name: 'Home', svg: `<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
+            { id: 'games', name: 'Games', svg: `<svg viewBox="0 0 24 24"><rect x="2" width="20" height="12" rx="2"/><path d="M6 12v4"/><path d="M10 12v4"/><path d="M14 12v4"/><path d="M18 12v4"/></svg>` },
+            { id: 'ai', name: 'AI Terminal', svg: `<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>` },
+            { id: 'proxy', name: 'Proxy', svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>` },
+            { id: 'customapps', name: 'Custom Apps', svg: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 14h7v7H3z"/></svg>` },
+            { id: 'marketplace', name: 'Marketplace', svg: `<svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>` },
+            { id: 'settings', name: 'Settings', svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` }
+        ];
+
         let customApps = JSON.parse(localStorage.getItem('ghostlink_apps')) || [];
         let marketplaceApps = [];
         let editingAppId = null;
+        let shortcuts = JSON.parse(localStorage.getItem('ghostlink_shortcuts')) || { home: 'H', games: 'G', panic: 'P' };
+        
+        // Navigation Order State
+        let navOrder = JSON.parse(localStorage.getItem('ghostlink_nav_order')) || {
+            top: ['home', 'games', 'ai', 'proxy'],
+            bottom: ['customapps', 'marketplace', 'settings']
+        };
 
         // --- CORE LOADING UTILITY ---
         function loadIntoFrame(targetUrl) {
             const frame = document.getElementById('app-frame');
             frame.style.display = 'block';
 
-            // Phase 1: Handle Data URIs or raw HTML content
             if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
                 frame.removeAttribute('src');
                 frame.srcdoc = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
@@ -523,7 +615,6 @@
                 return;
             }
 
-            // Phase 2: Check for GitHub/jsDelivr for Raw Loading
             const isGitHub = targetUrl.includes('github.com');
             const isJsDelivr = targetUrl.includes('cdn.jsdelivr.net');
 
@@ -548,9 +639,7 @@
                         frame.src = targetUrl;
                     });
             } else {
-                // Phase 3: Generic Website - Create Iframe
                 frame.removeAttribute('srcdoc');
-                // Ensure URL has protocol
                 if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
                 frame.src = targetUrl;
             }
@@ -587,6 +676,7 @@
                 renderAppList();
             } else if (page === 'marketplace') {
                 marketplaceView.style.display = 'block';
+                renderMarketplace(marketplaceApps);
                 fetchMarketplace();
             } else if (page === 'run_custom' && appData) {
                 loadIntoFrame(appData.content);
@@ -621,8 +711,9 @@
 
         function renderMarketplace(apps) {
             const container = document.getElementById('market-apps');
-            container.innerHTML = '';
+            if (!apps || apps.length === 0) return;
             
+            container.innerHTML = '';
             apps.forEach((app, index) => {
                 const isInstalled = customApps.some(a => a.name === app.name);
                 const card = document.createElement('div');
@@ -669,8 +760,7 @@
 
             customApps.push(newApp);
             localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
-            
-            // Auto-transition to App View
+            renderMarketplace(marketplaceApps);
             nav('run_custom', newApp);
         }
 
@@ -765,37 +855,236 @@
             } else {
                 savedApp = { id: 'app_' + Date.now(), name, content, svg, pinned };
                 customApps.push(savedApp);
+                
+                // Add new app to bottom group by default if pinned
+                if (pinned) {
+                    navOrder.bottom.push(`app_${savedApp.id}`);
+                }
             }
 
             localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
             clearAppForm();
             renderAppList();
-            
-            // Auto run after save
+            renderMarketplace(marketplaceApps);
             nav('run_custom', savedApp);
         }
 
         function deleteApp(id) {
             if (confirm("Are you sure you want to remove this app?")) {
                 customApps = customApps.filter(a => a.id !== id);
+                navOrder.top = navOrder.top.filter(i => i !== `app_${id}`);
+                navOrder.bottom = navOrder.bottom.filter(i => i !== `app_${id}`);
                 localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+                localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
                 if (editingAppId === id) clearAppForm();
                 renderAppList();
+                renderMarketplace(marketplaceApps);
             }
         }
 
+        // --- SIDEBAR DRAG AND DROP ---
         function updateSidebar() {
-            const navGroup = document.getElementById('sidebar-nav');
-            document.querySelectorAll('.nav-custom-item').forEach(el => el.remove());
+            const topGroup = document.getElementById('sidebar-nav-top');
+            const bottomGroup = document.getElementById('sidebar-nav-bottom');
             
-            customApps.filter(a => a.pinned).forEach(app => {
-                const item = document.createElement('div');
-                item.id = `nav-app-${app.id}`;
-                item.className = 'nav-item nav-custom-item';
-                item.onclick = () => nav("run_custom", app);
-                item.innerHTML = `${app.svg}<span>${app.name}</span>`;
-                navGroup.appendChild(item); 
+            topGroup.innerHTML = '';
+            bottomGroup.innerHTML = '';
+
+            const createNavItem = (id) => {
+                let itemData;
+                let isCustom = false;
+
+                if (id.startsWith('app_')) {
+                    const appId = id.replace('app_', '');
+                    itemData = customApps.find(a => a.id === appId);
+                    isCustom = true;
+                } else {
+                    itemData = systemPages.find(p => p.id === id);
+                }
+
+                if (!itemData) return null;
+
+                const div = document.createElement('div');
+                div.id = `nav-${itemData.id}`;
+                div.className = 'nav-item';
+                div.draggable = true;
+                div.dataset.id = id;
+                div.onclick = () => isCustom ? nav('run_custom', itemData) : nav(itemData.id);
+                div.innerHTML = `${itemData.svg}<span>${itemData.name}</span>`;
+
+                // Drag Events
+                div.addEventListener('dragstart', () => div.classList.add('dragging'));
+                div.addEventListener('dragend', () => {
+                    div.classList.remove('dragging');
+                    saveNavOrder();
+                });
+
+                return div;
+            };
+
+            navOrder.top.forEach(id => {
+                const el = createNavItem(id);
+                if (el) topGroup.appendChild(el);
             });
+
+            navOrder.bottom.forEach(id => {
+                const el = createNavItem(id);
+                if (el) bottomGroup.appendChild(el);
+            });
+
+            // Handle Pinned Apps not yet in navOrder
+            customApps.forEach(app => {
+                const appIdStr = `app_${app.id}`;
+                if (app.pinned && !navOrder.top.includes(appIdStr) && !navOrder.bottom.includes(appIdStr)) {
+                    const el = createNavItem(appIdStr);
+                    if (el) bottomGroup.appendChild(el);
+                    navOrder.bottom.push(appIdStr);
+                }
+            });
+
+            initDragHandlers(topGroup);
+            initDragHandlers(bottomGroup);
+        }
+
+        function initDragHandlers(container) {
+            container.addEventListener('dragover', e => {
+                e.preventDefault();
+                const dragging = document.querySelector('.dragging');
+                const afterElement = getDragAfterElement(container, e.clientY);
+                if (afterElement == null) {
+                    container.appendChild(dragging);
+                } else {
+                    container.insertBefore(dragging, afterElement);
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.nav-item:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveNavOrder() {
+            const topIds = [...document.querySelectorAll('#sidebar-nav-top .nav-item')].map(el => el.dataset.id);
+            const bottomIds = [...document.querySelectorAll('#sidebar-nav-bottom .nav-item')].map(el => el.dataset.id);
+            
+            navOrder.top = topIds;
+            navOrder.bottom = bottomIds;
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+        }
+
+        // --- BACKGROUND SYSTEM ---
+        function applyBackground(type, val) {
+            const root = document.documentElement;
+            if (type === 'color') {
+                root.style.setProperty('--bg', val);
+                // Also update inputs/sidebar
+                root.style.setProperty('--sidebar-bg', val);
+            } else if (type === 'url') {
+                root.style.setProperty('--bg-image', val && val !== 'none' ? `url(${val})` : 'none');
+            } else if (type === 'blur') {
+                root.style.setProperty('--bg-blur', val + 'px');
+            } else if (type === 'brightness') {
+                root.style.setProperty('--bg-brightness', val + '%');
+            }
+            saveConfig();
+        }
+
+        function handleBgUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const b64 = e.target.result;
+                document.getElementById('bg-url').value = b64;
+                applyBackground('url', b64);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- KEYBOARD SHORTCUTS ---
+        function captureShortcut(action) {
+            const input = document.getElementById(`sc-${action}`);
+            input.value = "PRESS KEY...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT") {
+                    shortcuts[action] = key;
+                    input.value = key;
+                    localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    window.removeEventListener('keydown', listener);
+                    input.blur();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function resetShortcuts() {
+            shortcuts = { home: 'H', games: 'G', panic: 'P' };
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            syncShortcutUI();
+        }
+
+        function syncShortcutUI() {
+            document.getElementById('sc-home').value = shortcuts.home;
+            document.getElementById('sc-games').value = shortcuts.games;
+            document.getElementById('sc-panic').value = shortcuts.panic;
+        }
+
+        // --- IMPORT / EXPORT ---
+        function exportData() {
+            const data = {
+                apps: customApps,
+                shortcuts: shortcuts,
+                config: JSON.parse(localStorage.getItem('ghostlink_config')),
+                navOrder: navOrder
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ghostlink_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.apps) {
+                        customApps = data.apps;
+                        localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+                    }
+                    if (data.shortcuts) {
+                        shortcuts = data.shortcuts;
+                        localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    }
+                    if (data.config) {
+                        localStorage.setItem('ghostlink_config', JSON.stringify(data.config));
+                    }
+                    if (data.navOrder) {
+                        navOrder = data.navOrder;
+                        localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+                    }
+                    alert("Import successful! Reloading...");
+                    location.reload();
+                } catch (err) {
+                    alert("Invalid config file.");
+                }
+            };
+            reader.readAsText(file);
         }
 
         // --- SETTINGS & CLOAKING ---
@@ -828,11 +1117,16 @@
         }
 
         function syncColor(val) { document.getElementById('theme-color').value = val; applyTheme(); }
+        
         function saveConfig() {
             localStorage.setItem('ghostlink_config', JSON.stringify({
                 title: document.getElementById('cloak-title').value,
                 icon: document.getElementById('cloak-icon').value,
                 color: document.getElementById('theme-color').value,
+                bgColor: document.getElementById('bg-picker').value,
+                bgUrl: document.getElementById('bg-url').value,
+                bgBlur: document.getElementById('bg-blur-input').value,
+                bgBright: document.getElementById('bg-bright-input').value,
                 font: document.getElementById('font-select').value
             }));
         }
@@ -892,9 +1186,30 @@
                 document.getElementById('cloak-title').value = saved.title || "";
                 document.getElementById('cloak-icon').value = saved.icon || "";
                 document.getElementById('theme-color').value = saved.color || "#6ecbff";
+                document.getElementById('bg-picker').value = saved.bgColor || "#000000";
+                document.getElementById('bg-url').value = saved.bgUrl || "";
+                document.getElementById('bg-blur-input').value = saved.bgBlur || "0";
+                document.getElementById('bg-bright-input').value = saved.bgBright || "100";
                 document.getElementById('font-select').value = saved.font || "'Courier New', monospace";
-                applyCloak(); applyTheme();
+                
+                applyCloak(); 
+                applyTheme();
+                applyBackground('color', saved.bgColor || "#000000");
+                if (saved.bgUrl) applyBackground('url', saved.bgUrl);
+                applyBackground('blur', saved.bgBlur || "0");
+                applyBackground('brightness', saved.bgBright || "100");
             }
+
+            syncShortcutUI();
+
+            window.addEventListener('keydown', (e) => {
+                if (e.altKey) {
+                    const key = e.key.toUpperCase();
+                    if (key === shortcuts.home) nav('home');
+                    if (key === shortcuts.games) nav('games');
+                    if (key === shortcuts.panic) usePreset(tabPresets.length - 1); // about:blank
+                }
+            });
 
             let lastFrameTime = performance.now();
             function updateFPS() {
@@ -923,5 +1238,6 @@
     </script>
 </body>
 </html>
+
 
 
