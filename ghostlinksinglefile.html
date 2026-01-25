@@ -395,8 +395,8 @@
                     </div>
                     <div>
                         <div class="input-group">
-                            <label>HTML Content</label>
-                            <textarea id="new-app-html" placeholder="<p>Hello world</p>"></textarea>
+                            <label>Content (URL or HTML)</label>
+                            <textarea id="new-app-html" placeholder="https://example.com OR <div>Hello</div>"></textarea>
                         </div>
                         <div class="input-group">
                             <label><input type="checkbox" id="new-app-pin"> Pin to Sidebar</label>
@@ -510,6 +510,52 @@
         let marketplaceApps = [];
         let editingAppId = null;
 
+        // --- CORE LOADING UTILITY ---
+        function loadIntoFrame(targetUrl) {
+            const frame = document.getElementById('app-frame');
+            frame.style.display = 'block';
+
+            // Phase 1: Handle Data URIs or raw HTML content
+            if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
+                frame.removeAttribute('src');
+                frame.srcdoc = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                return;
+            }
+
+            // Phase 2: Check for GitHub/jsDelivr for Raw Loading
+            const isGitHub = targetUrl.includes('github.com');
+            const isJsDelivr = targetUrl.includes('cdn.jsdelivr.net');
+
+            if (isGitHub || isJsDelivr) {
+                let processedUrl = targetUrl;
+                if (isGitHub && !targetUrl.includes('raw.githubusercontent.com')) {
+                    processedUrl = targetUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                }
+
+                fetch(processedUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Fetch failed`);
+                        return response.text();
+                    })
+                    .then(htmlContent => {
+                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        frame.srcdoc = htmlContent;
+                    })
+                    .catch(err => {
+                        console.warn('Raw fetch failed, falling back to direct src load.');
+                        frame.removeAttribute('srcdoc');
+                        frame.src = targetUrl;
+                    });
+            } else {
+                // Phase 3: Generic Website - Create Iframe
+                frame.removeAttribute('srcdoc');
+                // Ensure URL has protocol
+                if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
+                frame.src = targetUrl;
+            }
+        }
+
         // --- NAVIGATION ---
         async function nav(page, appData = null) {
             const frame = document.getElementById('app-frame');
@@ -520,10 +566,13 @@
             const hud = document.getElementById('home-hud');
 
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
             if (appData) {
-                document.getElementById(`nav-app-${appData.id}`)?.classList.add('active');
+                const navItem = document.getElementById(`nav-app-${appData.id}`);
+                if (navItem) navItem.classList.add('active');
             } else {
-                document.getElementById('nav-' + page)?.classList.add('active');
+                const navItem = document.getElementById('nav-' + page);
+                if (navItem) navItem.classList.add('active');
             }
 
             [home, settings, customAppsView, marketplaceView, frame, hud].forEach(el => el.style.display = 'none');
@@ -540,38 +589,20 @@
                 marketplaceView.style.display = 'block';
                 fetchMarketplace();
             } else if (page === 'run_custom' && appData) {
-                frame.style.display = 'block';
-                frame.srcdoc = appData.html;
+                loadIntoFrame(appData.content);
             } else if (page === 'ai' || page === 'games' || page === 'proxy') {
-                frame.style.display = 'block';
                 const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/';
                 const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
-                const targetUrl = `${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`;
-                
-                fetch(targetUrl)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`Could not fetch ${page}`);
-                        return response.text();
-                    })
-                    .then(htmlContent => {
-                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-                        frame.srcdoc = htmlContent;
-                    })
-                    .catch(err => {
-                        console.error('CDN Load Error:', err);
-                        frame.removeAttribute('srcdoc');
-                        frame.src = targetUrl;
-                    });
+                loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
             }
         }
 
         // --- MARKETPLACE SYSTEM ---
         async function fetchMarketplace() {
             const container = document.getElementById('market-apps');
-            if (marketplaceApps.length > 0) return; // Only fetch once
+            if (marketplaceApps.length > 0) return;
 
             try {
-                // Fetch the list of files in the /apps folder
                 const apiURL = "https://api.github.com/repos/virtuan4-max/ghostlink-apps/contents/apps";
                 const response = await fetch(apiURL);
                 const files = await response.json();
@@ -624,35 +655,23 @@
             renderMarketplace(filtered);
         }
 
-        async function installFromMarket(appName) {
+        function installFromMarket(appName) {
             const app = marketplaceApps.find(a => a.name === appName);
             if (!app) return;
 
-            try {
-                // Determine if URL points to a raw HTML file or is a hosted link to wrap in an iframe
-                let finalHtml = '';
-                if (app.url.endsWith('.html')) {
-                    const res = await fetch(app.url);
-                    finalHtml = await res.text();
-                } else {
-                    finalHtml = `<iframe src="${app.url}" style="width:100%; height:100vh; border:none;"></iframe>`;
-                }
+            const newApp = {
+                id: 'app_' + Date.now(),
+                name: app.name,
+                content: app.url,
+                svg: app.svg,
+                pinned: false
+            };
 
-                const newApp = {
-                    id: 'app_' + Date.now(),
-                    name: app.name,
-                    html: finalHtml,
-                    svg: app.svg,
-                    pinned: false
-                };
-
-                customApps.push(newApp);
-                localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
-                renderMarketplace(marketplaceApps);
-                alert(`${app.name} has been installed to Custom Apps.`);
-            } catch (err) {
-                alert("Installation failed. Error fetching source.");
-            }
+            customApps.push(newApp);
+            localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+            
+            // Auto-transition to App View
+            nav('run_custom', newApp);
         }
 
         // --- CUSTOM APP SYSTEM ---
@@ -689,7 +708,7 @@
 
             editingAppId = id;
             document.getElementById('new-app-name').value = app.name;
-            document.getElementById('new-app-html').value = app.html;
+            document.getElementById('new-app-html').value = app.content;
             document.getElementById('new-app-svg').value = app.svg;
             document.getElementById('new-app-pin').checked = app.pinned;
             
@@ -720,12 +739,12 @@
 
         function saveNewApp() {
             const name = document.getElementById('new-app-name').value.trim();
-            const html = document.getElementById('new-app-html').value;
+            const content = document.getElementById('new-app-html').value;
             const svg = document.getElementById('new-app-svg').value || svgLibrary[0];
             const pinned = document.getElementById('new-app-pin').checked;
             const errorEl = document.getElementById('name-error');
 
-            if (!name || !html) return;
+            if (!name || !content) return;
 
             const isDuplicate = customApps.some(app => 
                 app.name.toLowerCase() === name.toLowerCase() && app.id !== editingAppId
@@ -738,16 +757,22 @@
                 errorEl.style.display = 'none';
             }
 
+            let savedApp;
             if (editingAppId) {
                 const index = customApps.findIndex(a => a.id === editingAppId);
-                customApps[index] = { ...customApps[index], name, html, svg, pinned };
+                customApps[index] = { ...customApps[index], name, content, svg, pinned };
+                savedApp = customApps[index];
             } else {
-                customApps.push({ id: 'app_' + Date.now(), name, html, svg, pinned });
+                savedApp = { id: 'app_' + Date.now(), name, content, svg, pinned };
+                customApps.push(savedApp);
             }
 
             localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
             clearAppForm();
             renderAppList();
+            
+            // Auto run after save
+            nav('run_custom', savedApp);
         }
 
         function deleteApp(id) {
@@ -898,4 +923,5 @@
     </script>
 </body>
 </html>
+
 
