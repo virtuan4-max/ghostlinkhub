@@ -119,5 +119,13 @@ The `jsdlvrloader.html` file is designed to bypass filters and provide ultra-fas
 Run your loader anywhere you can run html!
 
 ---
-*Stay Linked. Stay Ghost. Stay GhostLink 😜* 
+
+## CREDITS
+* **Lead Developer:** xRevan (me)
+* **Some AI**
+* **Gaming Scripts:** Built using customized gn-math scripts and community-sourced game ports.
+* **AI Engine:** Powered by Groq API integration.
+
+---
+*Stay Linked. Stay Ghost. Stay GhostLink 👻* 
 JSDeliver link for ya nerds: https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub/
