@@ -7,13 +7,14 @@
     <style>
         :root {
             --bg: #000000;
-            --sidebar-bg: #050505;
+            --sidebar-bg: var(--bg);
             --accent: #6ecbff;
             --accent-glow: rgba(110, 203, 255, 0.3);
             --text-dim: #94a3b8;
             --border: rgba(110, 203, 255, 0.08);
             --font: 'Courier New', monospace;
             --card-bg: rgba(255, 255, 255, 0.03);
+            --input-bg: rgba(255, 255, 255, 0.05);
             --bg-image: none;
             --bg-blur: 0px;
             --bg-brightness: 100%;
@@ -23,10 +24,6 @@
 
         body {
             background-color: var(--bg);
-            background-image: var(--bg-image);
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
             color: white;
             font-family: var(--font);
             display: flex;
@@ -36,14 +33,20 @@
             position: relative;
         }
 
-        /* Background Overlay for blur/brightness */
         body::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: inherit;
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             filter: blur(var(--bg-blur)) brightness(var(--bg-brightness));
             z-index: -1;
+            pointer-events: none;
         }
 
         /* --- SIDEBAR --- */
@@ -55,9 +58,8 @@
             flex-direction: column;
             align-items: center;
             padding: 30px 0;
-            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
             z-index: 1000;
-            backdrop-filter: blur(10px);
         }
 
         .sidebar:hover { width: 220px; }
@@ -68,14 +70,28 @@
             font-size: 32px; 
             text-shadow: 0 0 10px var(--accent);
             cursor: default;
+            flex-shrink: 0;
         }
 
-        .nav-group { width: 100%; flex-grow: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
-
+        .nav-group { 
+            width: 100%; 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            overflow-x: hidden; 
+            display: flex; 
+            flex-direction: column;
+            scrollbar-width: none;
+        }
+        
+        .nav-group::-webkit-scrollbar {
+            display: none;
+        }
 
         .nav-item {
             width: 100%;
+            min-height: 50px;
             height: 50px;
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             color: var(--text-dim);
@@ -88,7 +104,6 @@
             user-select: none;
         }
 
-        /* Drag-and-drop styling */
         .nav-item.dragging {
             opacity: 0.5;
             background: var(--accent-glow);
@@ -127,9 +142,9 @@
         }
 
         .sidebar:hover .nav-item span { opacity: 1; }
-        .nav-item:hover { color: var(--accent); background: rgba(110, 203, 255, 0.05); }
-        .nav-item.active { color: black; }
-        .nav-item.active svg { stroke: black; }
+        .nav-item:hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
+        .nav-item.active { color: #000; }
+        .nav-item.active svg { stroke: #000; }
 
         .sidebar-bottom { 
             width: 100%; 
@@ -137,6 +152,7 @@
             padding-top: 10px;
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
         }
 
         /* --- CONTENT VIEWS --- */
@@ -173,6 +189,72 @@
         #home-clock { font-size: 6rem; font-weight: bold; color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); margin-bottom: -10px; }
         #home-date { font-size: 1rem; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
 
+        /* --- STATUS & SOCIAL HUDs --- */
+        .status-hud, .social-hud {
+            position: absolute; bottom: 25px;
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid var(--border);
+            padding: 15px; border-radius: 12px; font-size: 11px; color: var(--text-dim);
+            line-height: 2; z-index: 5;
+            backdrop-filter: blur(12px) saturate(180%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .status-hud { left: 95px; pointer-events: none; min-width: 160px; }
+        
+        /* UPDATED SOCIAL HUD STYLING */
+        .social-hud { 
+            right: 40px; 
+            min-width: 180px; 
+            padding: 20px; 
+        }
+
+        .status-hud text, .social-hud text { color: var(--accent); }
+
+        .bat-container { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .bat-shell { width: 35px; height: 18px; border: 2px solid var(--text-dim); border-radius: 4px; position: relative; padding: 2px; }
+        .bat-shell::after { content: ''; position: absolute; right: -5px; top: 4px; width: 3px; height: 6px; background: var(--text-dim); border-radius: 0 2px 2px 0; }
+        .bat-level { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+        .social-container { display: flex; align-items: center; justify-content: flex-end; gap: 15px; }
+        .social-icon { width: 30px; height: 30px; color: var(--text-dim); transition: 0.2s; cursor: pointer; text-decoration: none; }
+        .social-icon:hover { color: var(--accent); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        .social-icon svg { width: 100%; height: 100%; fill: currentColor; }
+        
+        /* UPDATED AVATAR STYLING */
+        .dev-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background-size: cover;
+            background-position: center;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .dev-avatar:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+
+        .settings-header {
+            margin-bottom: 20px !important; 
+        }
+
+        .settings-header h2 {
+            margin-bottom: 12px !important;
+            margin-top: 0;
+        }
+
+        .settings-header p {
+            margin: 0; 
+        }
+
         /* --- APPS UI --- */
         .app-grid {
             display: grid;
@@ -190,7 +272,7 @@
             flex-direction: column;
             gap: 15px;
             transition: 0.2s;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
         }
 
         .app-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
@@ -220,7 +302,7 @@
         /* --- SEARCH --- */
         .search-bar {
             width: 100%;
-            background: var(--bg);
+            background: var(--input-bg);
             border: 1px solid var(--border);
             padding: 15px 20px;
             border-radius: 12px;
@@ -229,8 +311,9 @@
             margin-bottom: 20px;
             outline: none;
             font-size: 1rem;
+            backdrop-filter: blur(5px);
         }
-        .search-bar:focus { border-color: var(--accent); }
+        .search-bar:focus { border-color: var(--accent); background: rgba(255,255,255,0.08); }
 
         /* --- MODALS / INPUTS --- */
         .settings-card {
@@ -247,13 +330,14 @@
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
         }
+    
 
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
 
         textarea, input[type="text"], input[type="number"], select {
             width: 100%;
-            background: var(--bg);
+            background: var(--input-bg);
             border: 1px solid var(--border);
             padding: 12px;
             border-radius: 8px;
@@ -261,6 +345,11 @@
             font-family: var(--font);
             outline: none;
             transition: 0.2s;
+            backdrop-filter: blur(5px);
+        }
+        textarea:focus, input:focus, select:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent);
         }
         textarea { height: 150px; resize: none; font-size: 0.8rem; }
 
@@ -268,7 +357,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
             gap: 10px;
-            background: var(--bg);
+            background: var(--input-bg);
             padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--border);
@@ -326,22 +415,6 @@
 
         #app-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: none; background: var(--bg); }
 
-        /* --- STATUS HUD --- */
-        .status-hud {
-            position: absolute; bottom: 25px; left: 95px;
-            background: rgba(15, 20, 25, 0.8); border: 1px solid var(--border);
-            padding: 15px; border-radius: 12px; font-size: 11px; color: var(--text-dim);
-            line-height: 2; pointer-events: none; z-index: 5; min-width: 160px;
-            display: block;
-            backdrop-filter: blur(5px);
-        }
-        .status-hud b { color: var(--accent); }
-
-        .bat-container { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-        .bat-shell { width: 35px; height: 18px; border: 2px solid var(--text-dim); border-radius: 4px; position: relative; padding: 2px; }
-        .bat-shell::after { content: ''; position: absolute; right: -5px; top: 4px; width: 3px; height: 6px; background: var(--text-dim); border-radius: 0 2px 2px 0; }
-        .bat-level { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
-
         .shortcut-input {
             text-align: center;
             font-weight: bold;
@@ -353,7 +426,6 @@
 
         .error-msg { color: #ff4444; font-size: 0.75rem; margin-top: 5px; display: none; }
 
-        /* Skeleton Loading */
         .skeleton {
             background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
             background-size: 200% 100%;
@@ -371,10 +443,8 @@
 
     <aside class="sidebar" id="main-sidebar">
         <div class="logo-box">◈</div>
-        <div class="nav-group" id="sidebar-nav-top">
-            </div>
-        <div class="sidebar-bottom" id="sidebar-nav-bottom">
-            </div>
+        <div class="nav-group" id="sidebar-nav-top"></div>
+        <div class="sidebar-bottom" id="sidebar-nav-bottom"></div>
     </aside>
 
     <div class="status-hud" id="home-hud">
@@ -382,12 +452,24 @@
             <div class="bat-shell"><div class="bat-level" id="bat-fill"></div></div>
             <span id="bat-text">--%</span>
         </div>
-        ⚡ FPS: <b id="fps">--</b><br>
-        📡 PING: <b id="ping">--</b> ms
+        ⚡ FPS: <text id="fps">--</text><br>
+        📡 PING: <text id="ping">--</text> ms
+    </div>
+
+    <div class="social-hud" id="social-hud">
+        <div class="social-container">
+            <a href="https://discord.gg/dKs2sUNUXd" target="_blank" class="social-icon" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.419-2.157 2.419z"/></svg>
+            </a>
+            <a href="https://github.com/virtuan4-max/ghostlinkhub" target="_blank" class="social-icon" title="GitHub">
+                <svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+            <a href="https://github.com/virtuan4-max" target="_blank" class="dev-avatar" style="background-image: url('https://avatars.githubusercontent.com/u/233476218?v=4');" title="Developer"></a></div>
+        </div>
     </div>
 
     <main class="main-view">
-        <section id="home-content" class="view-section" style="display: flex;">
+        <section id="home-content" class="view-section">
             <div class="hero">
                 <h1>Welcome to<br><span id="typewriter"></span></h1>
                 <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">GhostLink Network // Active Session</p>
@@ -399,7 +481,7 @@
             </div>
         </section>
 
-        <section id="customapps-view" class="view-section">
+        <section id="customapps" class="view-section">
             <div class="settings-header">
                 <h2>Custom Tools</h2>
                 <p style="color:var(--text-dim)">Manage and run your locally stored HTML applications.</p>
@@ -437,20 +519,22 @@
             <div class="app-grid" id="installed-apps"></div>
         </section>
 
-        <section id="marketplace-view" class="view-section">
+        <section id="marketplace" class="view-section">
             <div class="settings-header">
                 <h2>App Registry</h2>
-                <p style="color:var(--text-dim)">Discover and install community-driven tools and games.</p>
+                <p style="color:var(--text-dim)">
+                    Discover and install community-driven tools and games, 
+                    <a href="https://github.com/virtuan4-max/ghostlink-apps" target="_blank" style="color:var(--accent); text-decoration:underline;">or upload your apps to the marketplace</a>.
+                </p>
             </div>
+
             <input type="text" class="search-bar" id="market-search" placeholder="Search the marketplace..." oninput="filterMarketplace()">
+            
             <div class="app-grid" id="market-apps">
-                <div class="app-card"><div class="skeleton" style="height:40px; width:40px;"></div><div class="skeleton" style="height:20px;"></div><div class="skeleton" style="height:60px;"></div></div>
-                <div class="app-card"><div class="skeleton" style="height:40px; width:40px;"></div><div class="skeleton" style="height:20px;"></div><div class="skeleton" style="height:60px;"></div></div>
-                <div class="app-card"><div class="skeleton" style="height:40px; width:40px;"></div><div class="skeleton" style="height:20px;"></div><div class="skeleton" style="height:60px;"></div></div>
-            </div>
+                </div>
         </section>
 
-        <section id="settings-view" class="view-section">
+        <section id="settings" class="view-section">
             <div class="settings-header">
                 <h2>Settings</h2>
                 <p style="color:var(--text-dim)">Global configuration and tab cloaking.</p>
@@ -475,11 +559,11 @@
                     <div class="input-group">
                         <label>Accent Color</label>
                         <input type="text" id="theme-color" value="#6ecbff" oninput="applyTheme()">
-                        <input type="color" id="theme-picker" value="#6ecbff" style="margin-top:10px; width:100%; border:none; height:35px; border-radius:8px; cursor:pointer;" oninput="syncColor(this.value)">
+                        <input type="color" id="theme-picker" value="#6ecbff" style="margin-top:10px; width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="syncColor(this.value)">
                     </div>
                     <div class="input-group">
                         <label>Background Color</label>
-                        <input type="color" id="bg-picker" value="#000000" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer;" oninput="applyBackground('color', this.value)">
+                        <input type="color" id="bg-picker" value="#000000" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="applyBackground('color', this.value)">
                     </div>
                     <div class="input-group">
                         <label>Custom Wallpaper</label>
@@ -542,7 +626,7 @@
     </main>
 
     <script>
-        const words = ["GhostLink.", "the portal.", "the future.", "freedom."];
+        const words = ["GhostLink.", "invisibility.", "Nowhere.", "modularity.", "blueeeee.", "anonymity.", "BluePineApple", "freedom.", "the hub ;P", "liminality" ];
         const tabPresets = [
             { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
             { name: "Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
@@ -581,7 +665,7 @@
             `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
         ];
 
-        // Static Page Data for Sorting
+        // --- SYSTEM PAGE DATA ---
         const systemPages = [
             { id: 'home', name: 'Home', svg: `<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
             { id: 'games', name: 'Games', svg: `<svg viewBox="0 0 24 24"><rect x="2" width="20" height="12" rx="2"/><path d="M6 12v4"/><path d="M10 12v4"/><path d="M14 12v4"/><path d="M18 12v4"/></svg>` },
@@ -597,7 +681,6 @@
         let editingAppId = null;
         let shortcuts = JSON.parse(localStorage.getItem('ghostlink_shortcuts')) || { home: 'H', games: 'G', panic: 'P' };
         
-        // Navigation Order State
         let navOrder = JSON.parse(localStorage.getItem('ghostlink_nav_order')) || {
             top: ['home', 'games', 'ai', 'proxy'],
             bottom: ['customapps', 'marketplace', 'settings']
@@ -645,14 +728,14 @@
             }
         }
 
-        // --- NAVIGATION ---
         async function nav(page, appData = null) {
             const frame = document.getElementById('app-frame');
             const home = document.getElementById('home-content');
-            const settings = document.getElementById('settings-view');
-            const customAppsView = document.getElementById('customapps-view');
-            const marketplaceView = document.getElementById('marketplace-view');
+            const settings = document.getElementById('settings');
+            const customAppsView = document.getElementById('customapps');
+            const marketplaceView = document.getElementById('marketplace');
             const hud = document.getElementById('home-hud');
+            const socialHud = document.getElementById('social-hud');
 
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             
@@ -660,19 +743,23 @@
                 const navItem = document.getElementById(`nav-app-${appData.id}`);
                 if (navItem) navItem.classList.add('active');
             } else {
-                const navItem = document.getElementById('nav-' + page);
+                const navItemId = 'nav-' + page; 
+                const navItem = document.getElementById(navItemId);
                 if (navItem) navItem.classList.add('active');
             }
 
-            [home, settings, customAppsView, marketplaceView, frame, hud].forEach(el => el.style.display = 'none');
+            [home, settings, customAppsView, marketplaceView, frame, hud, socialHud].forEach(el => {
+                if (el) el.style.display = 'none';
+            });
 
             if (page === 'home') {
                 home.style.display = 'flex';
                 hud.style.display = 'block';
+                socialHud.style.display = 'block';
             } else if (page === 'settings') {
                 settings.style.display = 'block';
             } else if (page === 'customapps') {
-                customAppsView.style.display = 'block';
+                customAppsView.style.display = 'block'; 
                 renderAppList();
             } else if (page === 'marketplace') {
                 marketplaceView.style.display = 'block';
@@ -680,7 +767,7 @@
                 fetchMarketplace();
             } else if (page === 'run_custom' && appData) {
                 loadIntoFrame(appData.content);
-            } else if (page === 'ai' || page === 'games' || page === 'proxy') {
+            } else if (['ai', 'games', 'proxy'].includes(page)) {
                 const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/';
                 const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
                 loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
@@ -755,12 +842,17 @@
                 name: app.name,
                 content: app.url,
                 svg: app.svg,
-                pinned: false
+                pinned: true 
             };
 
             customApps.push(newApp);
             localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+            
+            navOrder.top.push(`app_${newApp.id}`);
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+
             renderMarketplace(marketplaceApps);
+            updateSidebar();
             nav('run_custom', newApp);
         }
 
@@ -784,7 +876,6 @@
                 `;
                 container.appendChild(card);
             });
-            updateSidebar();
         }
 
         function runSavedApp(id) {
@@ -811,7 +902,7 @@
                 else opt.classList.remove('selected');
             });
 
-            document.getElementById('customapps-view').scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('customapps').scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function clearAppForm() {
@@ -850,19 +941,32 @@
             let savedApp;
             if (editingAppId) {
                 const index = customApps.findIndex(a => a.id === editingAppId);
+                const wasPinned = customApps[index].pinned;
                 customApps[index] = { ...customApps[index], name, content, svg, pinned };
                 savedApp = customApps[index];
+                
+                if (pinned && !wasPinned) {
+                    if (!navOrder.top.includes(`app_${savedApp.id}`)) {
+                        navOrder.top.push(`app_${savedApp.id}`);
+                    }
+                } 
+                else if (!pinned && wasPinned) {
+                    navOrder.top = navOrder.top.filter(i => i !== `app_${savedApp.id}`);
+                    navOrder.bottom = navOrder.bottom.filter(i => i !== `app_${savedApp.id}`);
+                }
             } else {
                 savedApp = { id: 'app_' + Date.now(), name, content, svg, pinned };
                 customApps.push(savedApp);
                 
-                // Add new app to bottom group by default if pinned
                 if (pinned) {
-                    navOrder.bottom.push(`app_${savedApp.id}`);
+                    navOrder.top.push(`app_${savedApp.id}`);
                 }
             }
 
             localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+            
+            updateSidebar();
             clearAppForm();
             renderAppList();
             renderMarketplace(marketplaceApps);
@@ -870,7 +974,7 @@
         }
 
         function deleteApp(id) {
-            if (confirm("Are you sure you want to remove this app?")) {
+            {
                 customApps = customApps.filter(a => a.id !== id);
                 navOrder.top = navOrder.top.filter(i => i !== `app_${id}`);
                 navOrder.bottom = navOrder.bottom.filter(i => i !== `app_${id}`);
@@ -879,6 +983,7 @@
                 if (editingAppId === id) clearAppForm();
                 renderAppList();
                 renderMarketplace(marketplaceApps);
+                updateSidebar();
             }
         }
 
@@ -905,14 +1010,13 @@
                 if (!itemData) return null;
 
                 const div = document.createElement('div');
-                div.id = `nav-${itemData.id}`;
+                div.id = isCustom ? `nav-app-${itemData.id}` : `nav-${itemData.id}`;
                 div.className = 'nav-item';
                 div.draggable = true;
                 div.dataset.id = id;
                 div.onclick = () => isCustom ? nav('run_custom', itemData) : nav(itemData.id);
                 div.innerHTML = `${itemData.svg}<span>${itemData.name}</span>`;
 
-                // Drag Events
                 div.addEventListener('dragstart', () => div.classList.add('dragging'));
                 div.addEventListener('dragend', () => {
                     div.classList.remove('dragging');
@@ -930,16 +1034,6 @@
             navOrder.bottom.forEach(id => {
                 const el = createNavItem(id);
                 if (el) bottomGroup.appendChild(el);
-            });
-
-            // Handle Pinned Apps not yet in navOrder
-            customApps.forEach(app => {
-                const appIdStr = `app_${app.id}`;
-                if (app.pinned && !navOrder.top.includes(appIdStr) && !navOrder.bottom.includes(appIdStr)) {
-                    const el = createNavItem(appIdStr);
-                    if (el) bottomGroup.appendChild(el);
-                    navOrder.bottom.push(appIdStr);
-                }
             });
 
             initDragHandlers(topGroup);
@@ -984,16 +1078,37 @@
         // --- BACKGROUND SYSTEM ---
         function applyBackground(type, val) {
             const root = document.documentElement;
+            const sidebar = document.getElementById('main-sidebar');
+            const bgUrlInput = document.getElementById('bg-url');
+            const currentImg = bgUrlInput.value;
+            const hasImage = currentImg && currentImg !== 'none';
+            
             if (type === 'color') {
                 root.style.setProperty('--bg', val);
-                // Also update inputs/sidebar
-                root.style.setProperty('--sidebar-bg', val);
+                if (!hasImage) {
+                    root.style.setProperty('--sidebar-bg', val);
+                    sidebar.style.backdropFilter = "none";
+                }
             } else if (type === 'url') {
-                root.style.setProperty('--bg-image', val && val !== 'none' ? `url(${val})` : 'none');
+                const newHasImage = val && val !== 'none';
+                root.style.setProperty('--bg-image', newHasImage ? `url(${val})` : 'none');
+                
+                if (newHasImage) {
+                    root.style.setProperty('--sidebar-bg', 'rgba(5, 5, 5, 0.3)');
+                    sidebar.style.backdropFilter = "blur(15px) saturate(180%)";
+                    root.style.setProperty('--bg-blur', document.getElementById('bg-blur-input').value + 'px');
+                    root.style.setProperty('--bg-brightness', document.getElementById('bg-bright-input').value + '%');
+                } else {
+                    const currentBgColor = document.getElementById('bg-picker').value;
+                    root.style.setProperty('--sidebar-bg', currentBgColor);
+                    sidebar.style.backdropFilter = "none";
+                    root.style.setProperty('--bg-blur', '0px');
+                    root.style.setProperty('--bg-brightness', '100%');
+                }
             } else if (type === 'blur') {
-                root.style.setProperty('--bg-blur', val + 'px');
+                if (hasImage) root.style.setProperty('--bg-blur', val + 'px');
             } else if (type === 'brightness') {
-                root.style.setProperty('--bg-brightness', val + '%');
+                if (hasImage) root.style.setProperty('--bg-brightness', val + '%');
             }
             saveConfig();
         }
@@ -1112,6 +1227,7 @@
             const color = document.getElementById('theme-color').value;
             const font = document.getElementById('font-select').value;
             document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--accent-glow', color + '4D');
             document.documentElement.style.setProperty('--font', font);
             saveConfig();
         }
@@ -1198,6 +1314,8 @@
                 if (saved.bgUrl) applyBackground('url', saved.bgUrl);
                 applyBackground('blur', saved.bgBlur || "0");
                 applyBackground('brightness', saved.bgBright || "100");
+            } else {
+                applyBackground('color', '#000000');
             }
 
             syncShortcutUI();
@@ -1207,7 +1325,7 @@
                     const key = e.key.toUpperCase();
                     if (key === shortcuts.home) nav('home');
                     if (key === shortcuts.games) nav('games');
-                    if (key === shortcuts.panic) usePreset(tabPresets.length - 1); // about:blank
+                    if (key === shortcuts.panic) usePreset(tabPresets.length - 1); 
                 }
             });
 
@@ -1220,7 +1338,13 @@
                 requestAnimationFrame(updateFPS);
             }
 
-            updateSidebar(); type(); updateFPS(); updateClock();
+            updateSidebar(); 
+            type(); 
+            updateFPS(); 
+            updateClock();
+            
+            nav('home');
+
             setInterval(updateClock, 1000);
             if (navigator.getBattery) {
                 navigator.getBattery().then(bat => {
@@ -1238,6 +1362,3 @@
     </script>
 </body>
 </html>
-
-
-
