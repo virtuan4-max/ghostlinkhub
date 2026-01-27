@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GhostLink</title>
+    <title>GhostLink AI</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
@@ -391,6 +391,33 @@ const presets = {
     GLaDOS: { color: '#ff4e4e', prompt: 'You are GhostLink, a high-functioning AI with a cynical/condescending/dark tone.' },
     learn: { color: '#00ff41', prompt: 'You are GhostLink, an AI for creativity, learning and studying.' }
 };
+
+function syncGhostLinkTheme() {
+    // 1. Check if we are inside the GhostLink Single File
+    if (window.self !== window.top) {
+        
+        // 2. Setup the listener for when the parent sends colors
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'GHOSTLINK_THEME_DATA') {
+                const { accent, bg, font } = event.data.theme;
+                const root = document.documentElement;
+
+                if (accent) {
+                    root.style.setProperty('--accent-color', accent);
+                    root.style.setProperty('--accent-glow', accent + '4D'); // 30% transparency
+                }
+                if (bg) root.style.setProperty('--bg-dark', bg);
+                if (font) root.style.setProperty('font-family', font);
+            }
+        });
+
+        // 3. IMMEDIATELY ask the parent for the theme
+        window.parent.postMessage({ type: 'GHOSTLINK_QUERY_THEME' }, '*');
+    }
+}
+
+// Run this as soon as the DOM is ready for instant application
+document.addEventListener('DOMContentLoaded', syncGhostLinkTheme);
 
 function init() { 
     applyPreset('ghost'); 
