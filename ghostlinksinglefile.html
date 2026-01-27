@@ -50,7 +50,12 @@
         }
 
         /* --- SIDEBAR --- */
+/* Find the .sidebar class and update it to this: */
         .sidebar {
+            position: fixed; /* Add this */
+            top: 0;         /* Add this */
+            left: 0;        /* Add this */
+            height: 100vh;  /* Add this */
             width: 72px;
             background: var(--sidebar-bg);
             border-right: 1px solid var(--border);
@@ -155,8 +160,15 @@
             flex-shrink: 0;
         }
 
-        /* --- CONTENT VIEWS --- */
-        .main-view { flex-grow: 1; position: relative; display: flex; flex-direction: column; z-index: 1; }
+
+        .main-view { 
+            flex-grow: 1; 
+            margin-left: 72px; 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 1; 
+        }
 
         .view-section {
             height: 100%;
@@ -172,14 +184,15 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- HOME LAYOUT --- */
-        #home-content { 
+        #home-content {
+            position: relative; 
             display: flex; 
             flex-direction: row; 
             align-items: center; 
             justify-content: space-between;
             gap: 50px;
         }
+
 
         .hero { flex: 1; }
         .hero h1 { font-size: clamp(2rem, 5vw, 4.5rem); line-height: 1.1; margin-bottom: 10px; }
@@ -202,11 +215,11 @@
             justify-content: center;
         }
 
-        .status-hud { left: 95px; pointer-events: none; min-width: 160px; }
+        .status-hud { left: 250px; pointer-events: none; min-width: 160px; }
         
         /* UPDATED SOCIAL HUD STYLING */
         .social-hud { 
-            right: 40px; 
+            right: 175px; 
             min-width: 180px; 
             padding: 20px; 
         }
@@ -626,7 +639,7 @@
     </main>
 
     <script>
-        const words = ["GhostLink.", "invisibility.", "Nowhere.", "modularity.", "blueeeee.", "anonymity.", "BluePineApple", "freedom.", "the hub ;P", "liminality" ];
+        const words = ["GhostLink.", "invisibility.", "Knowhere.", "modularity.", "blueeeee.", "anonymity.", "BluePineApple.", "freedom.", "the hub ;P.", "liminality." ];
         const tabPresets = [
             { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
             { name: "Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
@@ -1359,6 +1372,30 @@
                 });
             }
         };
+        function sendThemeToIframe() {
+            const iframe = document.getElementById('app-frame');
+            if (!iframe || !iframe.contentWindow) return;
+
+            // Get live values from CSS variables
+            const styles = getComputedStyle(document.documentElement);
+            const theme = {
+                accent: styles.getPropertyValue('--accent').trim(),
+                bg: styles.getPropertyValue('--bg').trim(),
+                font: styles.getPropertyValue('--font').trim()
+            };
+
+            iframe.contentWindow.postMessage({
+                type: 'GHOSTLINK_THEME_DATA',
+                theme: theme
+            }, '*');
+        }
+
+        // Listen for the AI file asking for the theme
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'GHOSTLINK_QUERY_THEME') {
+                sendThemeToIframe();
+            }
+        });
     </script>
 </body>
 </html>
