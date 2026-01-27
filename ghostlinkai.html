@@ -160,7 +160,7 @@
 
         .search-area-wrapper {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(to top, #000 70%, transparent);
+            background: linear-gradient(to top, var(--bg-dark) 70%, transparent);
             padding: 20px 0 40px 0; display: flex; flex-direction: column; align-items: center; z-index: 100;
         }
 
@@ -174,7 +174,7 @@
         .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.7); color: #ff4e4e; font-size: 10px; cursor: pointer; padding: 0 3px; }
 
         .search-bar {
-            width: 700px; max-width: 92%; background-color: #080808; border: 1px solid var(--accent-color);
+            width: 700px; max-width: 92%; background-color: var(--bg-dark); border: 1px solid var(--accent-color);
             border-radius: 14px; padding: 12px 20px; display: flex; align-items: center; gap: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 10px var(--accent-glow);
         }
@@ -706,5 +706,8 @@ async function clearHistory() {
 </script>
 </body>
 </html>
+
+
+
 
 
