@@ -4,6 +4,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostLink</title>
+    <script>        // --- CORE LOADING UTILITY ---
+        function loadIntoFrame(targetUrl) {
+            const frame = document.getElementById('app-frame');
+            frame.style.display = 'block';
+
+            // 1. Capture current theme data
+            const styles = getComputedStyle(document.documentElement);
+            const accent = styles.getPropertyValue('--accent').trim();
+            const bg = styles.getPropertyValue('--bg').trim();
+            const font = styles.getPropertyValue('--font').trim();
+
+            // Helper to inject a "Pre-load" script into HTML strings
+            const injectThemeScript = (html) => {
+                // Get live values
+                const styles = getComputedStyle(document.documentElement);
+                const accent = styles.getPropertyValue('--accent').trim();
+                const bg = styles.getPropertyValue('--bg').trim();
+                const font = styles.getPropertyValue('--font').trim();
+
+                const themeScript = `
+                    <script>
+                        (function() {
+                            // Use backticks to handle fonts with single quotes safely
+                            document.documentElement.style.setProperty('--accent-color', \`${accent}\`);
+                            document.documentElement.style.setProperty('--bg-dark', \`${bg}\`);
+                            document.documentElement.style.setProperty('--font-family', \`${font}\`);
+                        })();
+                    <\/script>`;
+                return html.includes('<head>') ? html.replace('<head>', '<head>' + themeScript) : themeScript + html;
+            };
+
+            // Logic for data URIs or raw HTML
+            if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
+                frame.removeAttribute('src');
+                let rawHtml = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
+                frame.srcdoc = injectThemeScript(rawHtml);
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                return;
+            }
+
+            const isGitHub = targetUrl.includes('github.com');
+            const isJsDelivr = targetUrl.includes('cdn.jsdelivr.net');
+
+            if (isGitHub || isJsDelivr) {
+                let processedUrl = targetUrl;
+                if (isGitHub && !targetUrl.includes('raw.githubusercontent.com')) {
+                    processedUrl = targetUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                }
+
+                fetch(processedUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Fetch failed`);
+                        return response.text();
+                    })
+                    .then(htmlContent => {
+                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        // INJECT THEME INTO FETCHED CONTENT BEFORE SETTING SRCDOC
+                        frame.srcdoc = injectThemeScript(htmlContent);
+                    })
+                    .catch(err => {
+                        console.warn('Raw fetch failed, falling back to direct src load.');
+                        frame.removeAttribute('srcdoc');
+                        // Fallback to URL params
+                        frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
+                    });
+            } else {
+                frame.removeAttribute('srcdoc');
+                if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
+                // Append theme to URL for external loads
+                frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
+            }
+        }
+    </script>
     <style>
         :root {
             --bg: #000000;
@@ -635,7 +708,7 @@
             </div>
         </section>
 
-        <iframe id="app-frame"></iframe>
+        <iframe id="app-frame" onload="sendThemeToIframe()"></iframe>
     </main>
 
     <script>
@@ -699,47 +772,6 @@
             bottom: ['customapps', 'marketplace', 'settings']
         };
 
-        // --- CORE LOADING UTILITY ---
-        function loadIntoFrame(targetUrl) {
-            const frame = document.getElementById('app-frame');
-            frame.style.display = 'block';
-
-            if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
-                frame.removeAttribute('src');
-                frame.srcdoc = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
-                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-                return;
-            }
-
-            const isGitHub = targetUrl.includes('github.com');
-            const isJsDelivr = targetUrl.includes('cdn.jsdelivr.net');
-
-            if (isGitHub || isJsDelivr) {
-                let processedUrl = targetUrl;
-                if (isGitHub && !targetUrl.includes('raw.githubusercontent.com')) {
-                    processedUrl = targetUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-                }
-
-                fetch(processedUrl)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`Fetch failed`);
-                        return response.text();
-                    })
-                    .then(htmlContent => {
-                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-                        frame.srcdoc = htmlContent;
-                    })
-                    .catch(err => {
-                        console.warn('Raw fetch failed, falling back to direct src load.');
-                        frame.removeAttribute('srcdoc');
-                        frame.src = targetUrl;
-                    });
-            } else {
-                frame.removeAttribute('srcdoc');
-                if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
-                frame.src = targetUrl;
-            }
-        }
 
         async function nav(page, appData = null) {
             const frame = document.getElementById('app-frame');
@@ -781,9 +813,11 @@
             } else if (page === 'run_custom' && appData) {
                 loadIntoFrame(appData.content);
             } else if (['ai', 'games', 'proxy'].includes(page)) {
-                const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/';
+                const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/';
                 const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
+                sendThemeToIframe()
                 loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
+                sendThemeToIframe()
             }
         }
 
