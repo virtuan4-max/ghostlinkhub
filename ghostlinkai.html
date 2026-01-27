@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostLink AI</title>
+    
+    <script>
+    // Immediate execution: No function wrapper needed
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('accent')) document.documentElement.style.setProperty('--accent-color', params.get('accent'));
+    if (params.get('bg')) document.documentElement.style.setProperty('--bg-dark', params.get('bg'));
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
@@ -698,4 +706,5 @@ async function clearHistory() {
 </script>
 </body>
 </html>
+
 
