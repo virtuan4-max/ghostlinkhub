@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostLink</title>
+    <!-- Supabase for online users + total visits -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
     <script>        // --- CORE LOADING UTILITY ---
         function loadIntoFrame(targetUrl) {
             const frame = document.getElementById('app-frame');
@@ -516,6 +518,57 @@
             100% { background-position: -200% 0; }
         }
 
+        /* --- ONLINE DOT GLOW --- */
+        @keyframes dotGlow {
+            0%, 100% { text-shadow: 0 0 6px var(--accent), 0 0 12px var(--accent); opacity: 1; }
+            50% { text-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent), 0 0 36px var(--accent); opacity: 0.7; }
+        }
+        .online-dot {
+            display: inline-block;
+            animation: dotGlow 2s ease-in-out infinite;
+            color: var(--accent);
+        }
+        .online-count-val { color: var(--accent); }
+        .total-visits-display {
+            font-size: 0.72em;
+            opacity: 0.38;
+            margin-left: 14px;
+            letter-spacing: 0;
+        }
+
+        /* --- WORD LIST EDITOR --- */
+        .word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .word-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .word-row input[type="text"] {
+            flex: 1;
+            padding: 9px 12px;
+            margin: 0;
+        }
+        .word-del-btn {
+            background: transparent;
+            border: 1px solid rgba(255,68,68,0.4);
+            color: #ff4444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            padding: 8px 10px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .word-del-btn:hover { background: rgba(255,68,68,0.15); }
+
     </style>
 </head>
 <body>
@@ -551,7 +604,9 @@
         <section id="home-content" class="view-section">
             <div class="hero">
                 <h1>Welcome to<br><span id="typewriter"></span></h1>
-                <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">GhostLink Network // Active Session</p>
+                <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">
+                    GhostLink Network // <span class="online-count-val" id="online-count">...</span> <span class="online-dot">•</span><span class="total-visits-display" id="total-visits">...</span>
+                </p>
                 <button class="btn-start" onclick="nav('games')">INITIALIZE SYSTEMS</button>
             </div>
             <div class="clock-container">
@@ -671,6 +726,16 @@
                 </div>
 
                 <div class="settings-card">
+                    <h3>Typewriter Words</h3>
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 15px;">Edit the words the typewriter cycles through on the home screen.</p>
+                    <div class="word-list" id="word-list"></div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="new-word-input" placeholder="Add a new word..." style="flex:1; margin:0;" onkeydown="if(event.key==='Enter') addTypewriterWord()">
+                        <button class="btn-small run" onclick="addTypewriterWord()" style="white-space:nowrap;">+ ADD</button>
+                    </div>
+                </div>
+
+                <div class="settings-card">
                     <h3>Keyboard Shortcuts</h3>
                     <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 15px;">Click a box and press a key to rebind. Alt + Key.</p>
                     <div class="input-group">
@@ -705,7 +770,10 @@
     </main>
 
     <script>
-        const words = ["GhostLink.", "invisibility.", "Knowhere.", "modularity.", "blueeeee.", "anonymity.", "the OASIS.", "freedom.", "the hub ;P.", "liminality." ];
+        // --- DEFAULT TYPEWRITER WORDS 
+        const DEFAULT_WORDS = ["GhostLink.", "Knowhere.", "modularity.", "blueeeee.", "anonymity.", "the OASIS.", "freedom.", "the hub ;P.", "liminality.", "simulation."];
+        let words = JSON.parse(localStorage.getItem('ghostlink_words')) || DEFAULT_WORDS.slice();
+
         const tabPresets = [
             { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
             { name: "Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
@@ -765,7 +833,43 @@
             bottom: ['customapps', 'marketplace', 'settings']
         };
 
+        // --- SUPABASE SETUP
+        const SUPABASE_URL = 'https://npvjxyxnmdcncupbwdsx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdmp4eXhubWRjbmN1cGJ3ZHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTU0MjcsImV4cCI6MjA4Mjg3MTQyN30.hZhxWo1iR8O0r66vIeElcsPy1PljtpJ_dEbAOvhrr1Q';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // Increment and display total visits (ya'll hoes better not troll ts)
+        async function initTotalVisits() {
+            const { data, error } = await supabaseClient.rpc('increment_views');
+            const el = document.getElementById('total-visits');
+            if (!el) return;
+            if (error) { console.error('Views RPC error:', error); el.textContent = ''; return; }
+            el.textContent = Number(data).toLocaleString() + ' visits';
+        }
+
+        // Track online users via Supabase Realtime Presence
+        function initOnlineUsers() {
+            const onlineEl = document.getElementById('online-count');
+            const sessionKey = 'gl_' + Math.random().toString(36).substr(2, 9);
+
+            const channel = supabaseClient.channel('ghostlink-online', {
+                config: { presence: { key: sessionKey } }
+            });
+
+            channel.on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const count = Object.keys(state).length;
+                if (onlineEl) onlineEl.textContent = count.toLocaleString();
+            });
+
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ online_at: new Date().toISOString() });
+                }
+            });
+        }
+
+        // --- NAV ---
         async function nav(page, appData = null) {
             const frame = document.getElementById('app-frame');
             const home = document.getElementById('home-content');
@@ -796,6 +900,7 @@
                 socialHud.style.display = 'block';
             } else if (page === 'settings') {
                 settings.style.display = 'block';
+                renderWordsEditor();
             } else if (page === 'customapps') {
                 customAppsView.style.display = 'block'; 
                 renderAppList();
@@ -808,9 +913,9 @@
             } else if (['ai', 'games', 'proxy'].includes(page)) {
                 const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/';
                 const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
-                sendThemeToIframe()
+                sendThemeToIframe();
                 loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
-                sendThemeToIframe()
+                sendThemeToIframe();
             }
         }
 
@@ -1195,13 +1300,53 @@
             document.getElementById('sc-panic').value = shortcuts.panic;
         }
 
+        // --- TYPEWRITER WORDS EDITOR ---
+        function saveWords() {
+            localStorage.setItem('ghostlink_words', JSON.stringify(words));
+        }
+
+        function renderWordsEditor() {
+            const list = document.getElementById('word-list');
+            if (!list) return;
+            list.innerHTML = '';
+            words.forEach((w, i) => {
+                const row = document.createElement('div');
+                row.className = 'word-row';
+                row.innerHTML = `
+                    <input type="text" value="${w.replace(/"/g, '&quot;')}" 
+                        oninput="words[${i}] = this.value; saveWords();" 
+                        placeholder="Word ${i + 1}">
+                    <button class="word-del-btn" onclick="deleteTypewriterWord(${i})">✕ REMOVE</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function addTypewriterWord() {
+            const input = document.getElementById('new-word-input');
+            const val = input.value.trim();
+            if (!val) return;
+            words.push(val);
+            saveWords();
+            input.value = '';
+            renderWordsEditor();
+        }
+
+        function deleteTypewriterWord(index) {
+            if (words.length <= 1) return; // keep at least one
+            words.splice(index, 1);
+            saveWords();
+            renderWordsEditor();
+        }
+
         // --- IMPORT / EXPORT ---
         function exportData() {
             const data = {
                 apps: customApps,
                 shortcuts: shortcuts,
                 config: JSON.parse(localStorage.getItem('ghostlink_config')),
-                navOrder: navOrder
+                navOrder: navOrder,
+                words: words
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1232,6 +1377,10 @@
                     if (data.navOrder) {
                         navOrder = data.navOrder;
                         localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+                    }
+                    if (data.words && Array.isArray(data.words) && data.words.length > 0) {
+                        words = data.words;
+                        localStorage.setItem('ghostlink_words', JSON.stringify(words));
                     }
                     alert("Import successful! Reloading...");
                     location.reload();
@@ -1307,12 +1456,15 @@
         function type() {
             const target = document.getElementById("typewriter");
             if(!target) return;
-            const currentWord = words[wordIdx];
+            // Always use current words array (live from localStorage)
+            const currentWords = words.length > 0 ? words : DEFAULT_WORDS;
+            wordIdx = wordIdx % currentWords.length;
+            const currentWord = currentWords[wordIdx];
             target.textContent = currentWord.substring(0, charIdx);
             if (isDeleting) charIdx--; else charIdx++;
             let typeSpeed = isDeleting ? 50 : 120;
             if (!isDeleting && charIdx > currentWord.length) { isDeleting = true; typeSpeed = 2000; } 
-            else if (isDeleting && charIdx < 0) { isDeleting = false; wordIdx = (wordIdx + 1) % words.length; charIdx = 0; typeSpeed = 500; }
+            else if (isDeleting && charIdx < 0) { isDeleting = false; wordIdx = (wordIdx + 1) % currentWords.length; charIdx = 0; typeSpeed = 500; }
             setTimeout(type, typeSpeed);
         }
 
@@ -1398,7 +1550,12 @@
                     bat.addEventListener('levelchange', updateBat); updateBat();
                 });
             }
+
+            // Initialize Supabase features
+            initTotalVisits();
+            initOnlineUsers();
         };
+
         function sendThemeToIframe() {
             const iframe = document.getElementById('app-frame');
             if (!iframe || !iframe.contentWindow) return;
@@ -1426,4 +1583,3 @@
     </script>
 </body>
 </html>
-
