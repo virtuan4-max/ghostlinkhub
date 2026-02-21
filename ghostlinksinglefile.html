@@ -85,6 +85,7 @@
             --sidebar-bg: var(--bg);
             --accent: #6ecbff;
             --accent-glow: rgba(110, 203, 255, 0.3);
+            --text-primary: #ffffff;
             --text-dim: #94a3b8;
             --border: rgba(110, 203, 255, 0.08);
             --font: 'Courier New', monospace;
@@ -99,7 +100,7 @@
 
         body {
             background-color: var(--bg);
-            color: white;
+            color: var(--text-primary);
             font-family: var(--font);
             display: flex;
             height: 100vh;
@@ -422,15 +423,25 @@
             border: 1px solid var(--border);
             padding: 12px;
             border-radius: 8px;
-            color: white;
+            color: var(--text-primary);
             font-family: var(--font);
             outline: none;
             transition: 0.2s;
             backdrop-filter: blur(5px);
+            color-scheme: dark;
         }
         textarea:focus, input:focus, select:focus {
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--accent);
+        }
+        select option {
+            background: var(--bg, #111111);
+            color: var(--text-primary, #ffffff);
+            accent-color: var(--accent);
+        }
+        select option:checked {
+            background: var(--accent, #6ecbff);
+            color: #000000;
         }
         textarea { height: 150px; resize: none; font-size: 0.8rem; }
 
@@ -569,12 +580,320 @@
         }
         .word-del-btn:hover { background: rgba(255,68,68,0.15); }
 
+        /* --- ACCENT SCROLLBARS --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; opacity: 0.7; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); opacity: 1; }
+        * { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
+
+        /* --- README MODAL --- */
+        .readme-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .readme-modal {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 780px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+        .readme-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 12px;
+        }
+        .readme-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .readme-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.18s;
+            white-space: nowrap;
+        }
+        .readme-tab-btn:hover { color: var(--text-primary); }
+        .readme-tab-btn.active { background: var(--accent); color: #000; font-weight: bold; }
+        .readme-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .readme-close:hover { border-color: var(--accent); color: var(--accent); }
+        .readme-panel {
+            overflow-y: auto;
+            padding: 24px;
+            flex-grow: 1;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            display: none;
+        }
+        .readme-panel.active { display: block; }
+        .readme-body { color: #d1d5db; }
+        .readme-body h1, .readme-body h2, .readme-body h3 { color: var(--accent); margin: 1.2em 0 0.4em; }
+        .readme-body h1 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .readme-body h2 { font-size: 1.2em; }
+        .readme-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .readme-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 12px 0; }
+        .readme-body pre code { background: transparent; padding: 0; color: white; }
+        .readme-body a { color: var(--accent); text-decoration: underline; }
+        .readme-body ul, .readme-body ol { padding-left: 24px; margin: 8px 0; }
+        .readme-body li { margin: 4px 0; }
+        .readme-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--text-dim); margin: 12px 0; }
+        .readme-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+        .readme-body img { max-width: 100%; border-radius: 8px; }
+        .readme-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .readme-body th, .readme-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        .readme-body th { background: rgba(255,255,255,0.05); color: var(--accent); }
+        /* versions list */
+        .versions-panel { color: var(--text-dim); }
+        .versions-list { display: flex; flex-direction: column; gap: 8px; }
+        .version-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 13px 16px;
+            cursor: pointer;
+            transition: 0.18s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .version-item:hover { border-color: var(--accent); background: rgba(255,255,255,0.06); }
+        .version-sha {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: rgba(110,203,255,0.1);
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+        .version-info { flex: 1; min-width: 0; }
+        .version-title {
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 3px;
+        }
+        .version-meta { font-size: 0.72rem; color: var(--text-dim); }
+        .version-has-body {
+            font-size: 0.65rem;
+            color: var(--accent);
+            border: 1px solid rgba(110,203,255,0.4);
+            border-radius: 3px;
+            padding: 1px 5px;
+            flex-shrink: 0;
+            align-self: flex-start;
+            margin-top: 3px;
+        }
+        /* version detail */
+        .version-detail { display: none; flex-direction: column; }
+        .version-detail.active { display: flex; }
+        .version-detail-back {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: 0.18s;
+            user-select: none;
+            width: fit-content;
+        }
+        .version-detail-back:hover { color: var(--accent); }
+        .version-detail-back svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; flex-shrink: 0; }
+        .version-detail-tag {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .version-detail-title { font-size: 1rem; font-weight: bold; color: var(--text-primary); margin-bottom: 8px; line-height: 1.4; }
+        .version-detail-meta { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .version-detail-meta span { color: var(--accent); }
+        .version-detail-body { color: #d1d5db; }
+        .version-detail-body h1, .version-detail-body h2, .version-detail-body h3 { color: var(--accent); margin: 1em 0 0.4em; }
+        .version-detail-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .version-detail-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+        .version-detail-body pre code { background: transparent; padding: 0; color: white; }
+        .version-detail-body a { color: var(--accent); }
+        .version-detail-body ul, .version-detail-body ol { padding-left: 22px; margin: 8px 0; }
+        .version-detail-body li { margin: 4px 0; }
+        .version-detail-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 10px 0; color: var(--text-dim); }
+        .version-detail-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+        /* --- UPDATE MODAL --- */
+        .update-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .update-modal {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 20px rgba(0,0,0,0.8);
+        }
+        .update-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 14px;
+        }
+        .update-header-left { flex: 1; }
+        .update-tag {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .update-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.4;
+        }
+        .update-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .update-close:hover { border-color: var(--accent); color: var(--accent); }
+        .update-body {
+            overflow-y: auto;
+            padding: 20px 24px;
+            flex-grow: 1;
+            color: var(--text-dim);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 0.88rem;
+            line-height: 1.7;
+        }
+        .update-body h1, .update-body h2, .update-body h3 { color: var(--accent); margin: 1em 0 0.4em; }
+        .update-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .update-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+        .update-body pre code { background: transparent; padding: 0; color: var(--text-primary); }
+        .update-body a { color: var(--accent); }
+        .update-body ul, .update-body ol { padding-left: 22px; margin: 8px 0; }
+        .update-body li { margin: 4px 0; }
+        .update-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 10px 0; }
+        .update-body hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+        .update-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .update-footer-meta { font-size: 0.72rem; color: var(--text-dim); }
+        .update-footer-meta span { color: var(--accent); }
+
+        /* --- CUSTOM SHORTCUTS LIST --- */
+        .custom-shortcut-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .custom-shortcut-row .shortcut-input {
+            width: 60px;
+            flex-shrink: 0;
+            padding: 10px 6px;
+        }
+        .custom-shortcut-row select {
+            flex: 1;
+            margin: 0;
+            padding: 10px 12px;
+        }
+        .custom-shortcut-row .word-del-btn {
+            flex-shrink: 0;
+        }
+
     </style>
 </head>
 <body>
 
     <aside class="sidebar" id="main-sidebar">
-        <div class="logo-box">◈</div>
+        <div class="logo-box" onclick="openReadmeModal()" title="View README" style="cursor:pointer;">◈</div>
         <div class="nav-group" id="sidebar-nav-top"></div>
         <div class="sidebar-bottom" id="sidebar-nav-bottom"></div>
     </aside>
@@ -607,7 +926,7 @@
                 <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">
                     GhostLink Network // <span class="online-count-val" id="online-count">...</span> <span class="online-dot">•</span><span class="total-visits-display" id="total-visits">...</span>
                 </p>
-                <button class="btn-start" onclick="nav('games')">INITIALIZE SYSTEMS</button>
+                <button class="btn-start" onclick="nav(document.getElementById('init-target-select')?.value || 'games')">INITIALIZE SYSTEMS</button>
             </div>
             <div class="clock-container">
                 <div id="home-clock">00:00:00</div>
@@ -686,6 +1005,10 @@
                     </div>
                     <label>Presets</label>
                     <div class="preset-container" id="preset-list"></div>
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px;">Open GhostLink disguised inside an <code style="color:var(--accent); background:rgba(255,255,255,0.07); padding:1px 5px; border-radius:4px;">about:blank</code> tab for maximum stealth.</p>
+                        <button class="btn-start" onclick="openAboutBlankCloak()" style="margin-top:0; width:100%;">OPEN IN ABOUT:BLANK</button>
+                    </div>
                 </div>
 
                 <div class="settings-card">
@@ -695,6 +1018,16 @@
                         <input type="text" id="theme-color" value="#6ecbff" oninput="applyTheme()">
                         <input type="color" id="theme-picker" value="#6ecbff" style="margin-top:10px; width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="syncColor(this.value)">
                     </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="input-group">
+                            <label>Primary Text</label>
+                            <input type="color" id="text-primary-picker" value="#ffffff" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background:transparent;" oninput="applyTextColors()">
+                        </div>
+                        <div class="input-group">
+                            <label>Secondary Text</label>
+                            <input type="color" id="text-dim-picker" value="#94a3b8" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background:transparent;" oninput="applyTextColors()">
+                        </div>
+                    </div>
                     <div class="input-group">
                         <label>Background Color</label>
                         <input type="color" id="bg-picker" value="#000000" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="applyBackground('color', this.value)">
@@ -702,7 +1035,10 @@
                     <div class="input-group">
                         <label>Custom Wallpaper</label>
                         <input type="text" id="bg-url" placeholder="Image URL" oninput="applyBackground('url', this.value)">
-                        <button class="btn-small" onclick="document.getElementById('bg-upload').click()" style="margin-top:10px; width:100%;">UPLOAD IMAGE</button>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button class="btn-small" onclick="document.getElementById('bg-upload').click()" style="flex:1;">UPLOAD IMAGE</button>
+                            <button class="btn-small" onclick="clearBackground()" style="flex:1; color:#ff4444; border-color:rgba(255,68,68,0.4);">✕ CLEAR</button>
+                        </div>
                         <input type="file" id="bg-upload" hidden accept="image/*" onchange="handleBgUpload(this)">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -717,21 +1053,74 @@
                     </div>
                     <div class="input-group">
                         <label>Font Family</label>
-                        <select id="font-select" onchange="applyTheme()">
+                        <select id="font-select" onchange="document.getElementById('font-custom-family').value=''; applyTheme()">
                             <option value="'Courier New', monospace">Retro Mono</option>
                             <option value="'Inter', sans-serif">Modern Sans</option>
                             <option value="'Segoe UI', sans-serif">System UI</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label>Custom Font URL <span style="color:var(--accent); font-size:0.7em;">(Google Fonts / any CSS stylesheet)</span></label>
+                        <input type="text" id="font-url-input" placeholder="https://fonts.googleapis.com/css2?family=Orbitron&display=swap">
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <input type="text" id="font-custom-family" placeholder="Font family name, e.g. Orbitron" style="flex:1; margin:0;" oninput="applyTheme()">
+                            <button class="btn-small run" onclick="loadCustomFont()" style="white-space:nowrap; flex-shrink:0;">LOAD</button>
+                        </div>
+                        <p style="font-size:0.7rem; color:var(--text-dim); margin-top:6px;">Enter the font name exactly as it appears on Google Fonts, then hit LOAD.</p>
+                    </div>
                 </div>
 
                 <div class="settings-card">
-                    <h3>Typewriter Words</h3>
-                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 15px;">Edit the words the typewriter cycles through on the home screen.</p>
+                    <h3>Homescreen</h3>
+
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Typewriter Words</p>
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 10px;">Edit the words the typewriter cycles through on the home screen.</p>
                     <div class="word-list" id="word-list"></div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
                         <input type="text" id="new-word-input" placeholder="Add a new word..." style="flex:1; margin:0;" onkeydown="if(event.key==='Enter') addTypewriterWord()">
                         <button class="btn-small run" onclick="addTypewriterWord()" style="white-space:nowrap;">+ ADD</button>
+                    </div>
+
+                    <div style="padding-top:16px; border-top:1px solid var(--border); margin-bottom:16px;">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Initialize Systems Button</p>
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label>Navigate to</label>
+                            <select id="init-target-select" onchange="saveConfig()">
+                                <option value="games">Games</option>
+                                <option value="home">Home</option>
+                                <option value="ai">AI Terminal</option>
+                                <option value="proxy">Proxy</option>
+                                <option value="customapps">Custom Apps</option>
+                                <option value="marketplace">Marketplace</option>
+                                <option value="settings">Settings</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="padding-top:16px; border-top:1px solid var(--border);">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Clock & Date Display</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Time Format</label>
+                                <select id="clock-format-select" onchange="saveConfig(); updateClock()">
+                                    <option value="24h-s">24h with seconds</option>
+                                    <option value="24h">24h no seconds</option>
+                                    <option value="12h-s">12h with seconds</option>
+                                    <option value="12h">12h no seconds</option>
+                                    <option value="off">Hide clock</option>
+                                </select>
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Date Format</label>
+                                <select id="date-format-select" onchange="saveConfig(); updateClock()">
+                                    <option value="full">Full (Mon, Jan 1, 2025)</option>
+                                    <option value="short">Short (Mon, Jan 1)</option>
+                                    <option value="numeric">Numeric (01/01/2025)</option>
+                                    <option value="iso">ISO (2025-01-01)</option>
+                                    <option value="off">Hide date</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -750,7 +1139,26 @@
                         <label>Panic Key (Immediate Cloak)</label>
                         <input type="text" class="shortcut-input" id="sc-panic" readonly onclick="captureShortcut('panic')">
                     </div>
-                    <button class="btn-small" onclick="resetShortcuts()" style="width:100%">RESET SHORTCUTS</button>
+
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Custom Keybinds</p>
+                        <div id="custom-shortcuts-list"></div>
+                        <div class="custom-shortcut-row" style="margin-top: 10px;">
+                            <input type="text" class="shortcut-input" id="new-sc-key" placeholder="KEY" readonly style="width:60px; flex-shrink:0;" onclick="captureNewShortcutKey()">
+                            <select id="new-sc-action" style="flex:1; margin:0; padding:10px 12px;">
+                                <option value="home">Home</option>
+                                <option value="games">Games</option>
+                                <option value="ai">AI Terminal</option>
+                                <option value="proxy">Proxy</option>
+                                <option value="customapps">Custom Apps</option>
+                                <option value="marketplace">Marketplace</option>
+                                <option value="settings">Settings</option>
+                            </select>
+                            <button class="btn-small run" onclick="addCustomShortcut()" style="white-space:nowrap; flex-shrink:0;">+ ADD</button>
+                        </div>
+                    </div>
+
+                    <button class="btn-small" onclick="resetShortcuts()" style="width:100%; margin-top:12px;">RESET SHORTCUTS</button>
                 </div>
 
                 <div class="settings-card">
@@ -769,8 +1177,75 @@
         <iframe id="app-frame" onload="sendThemeToIframe()"></iframe>
     </main>
 
+    <!-- README MODAL -->
+    <div class="readme-overlay" id="readme-overlay" style="display:none;" onclick="if(event.target===this)closeReadmeModal()">
+        <div class="readme-modal">
+            <div class="readme-header">
+                <div class="readme-tabs">
+                    <button class="readme-tab-btn active" id="tab-btn-readme" onclick="switchReadmeTab('readme')">README</button>
+                    <button class="readme-tab-btn" id="tab-btn-versions" onclick="switchReadmeTab('versions')">VERSIONS</button>
+                </div>
+                <button class="readme-close" onclick="closeReadmeModal()">✕</button>
+            </div>
+
+            <!-- README PANEL -->
+            <div class="readme-panel readme-body active" id="readme-panel">
+                <div class="skeleton" style="height:24px; margin-bottom:12px;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:70%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:85%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:60%;"></div>
+            </div>
+
+            <!-- VERSIONS PANEL -->
+            <div class="readme-panel versions-panel" id="versions-panel">
+                <!-- list view -->
+                <div id="versions-list-view">
+                    <div class="versions-list" id="versions-list">
+                        <div class="skeleton" style="height:60px; border-radius:10px; margin-bottom:8px;"></div>
+                        <div class="skeleton" style="height:60px; border-radius:10px; margin-bottom:8px;"></div>
+                        <div class="skeleton" style="height:60px; border-radius:10px;"></div>
+                    </div>
+                </div>
+                <!-- detail view -->
+                <div id="versions-detail-view" class="version-detail">
+                    <div class="version-detail-back" onclick="versionsBackToList()">
+                        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                        BACK TO VERSIONS
+                    </div>
+                    <div class="version-detail-tag">◈ Commit</div>
+                    <div class="version-detail-title" id="vd-title"></div>
+                    <div class="version-detail-meta" id="vd-meta"></div>
+                    <div class="version-detail-body" id="vd-body"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPDATE MODAL -->
+    <div class="update-overlay" id="update-overlay" style="display:none;">
+        <div class="update-modal">
+            <div class="update-header">
+                <div class="update-header-left">
+                    <div class="update-tag">◈ New Update</div>
+                    <h3 id="update-title">Loading...</h3>
+                </div>
+                <button class="update-close" onclick="dismissUpdate()" title="Dismiss">✕</button>
+            </div>
+            <div class="update-body" id="update-body">
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:90%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:75%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px;"></div>
+            </div>
+            <div class="update-footer">
+                <div class="update-footer-meta" id="update-meta"></div>
+                <button class="btn-small run" onclick="dismissUpdate()">GOT IT</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- DEFAULT TYPEWRITER WORDS 
+        // --- DEFAULT TYPEWRITER WORDS (loaded/overridden from localStorage) ---
         const DEFAULT_WORDS = ["GhostLink.", "Knowhere.", "modularity.", "blueeeee.", "anonymity.", "the OASIS.", "freedom.", "the hub ;P.", "liminality.", "simulation."];
         let words = JSON.parse(localStorage.getItem('ghostlink_words')) || DEFAULT_WORDS.slice();
 
@@ -826,19 +1301,20 @@
         let customApps = JSON.parse(localStorage.getItem('ghostlink_apps')) || [];
         let marketplaceApps = [];
         let editingAppId = null;
-        let shortcuts = JSON.parse(localStorage.getItem('ghostlink_shortcuts')) || { home: 'H', games: 'G', panic: 'P' };
+        let shortcuts = JSON.parse(localStorage.getItem('ghostlink_shortcuts')) || { home: 'H', games: 'G', panic: 'P', custom: [] };
+        if (!shortcuts.custom) shortcuts.custom = [];
         
         let navOrder = JSON.parse(localStorage.getItem('ghostlink_nav_order')) || {
             top: ['home', 'games', 'ai', 'proxy'],
             bottom: ['customapps', 'marketplace', 'settings']
         };
 
-        // --- SUPABASE SETUP
+        // --- SUPABASE SETUP (exact logic from total-views.html) ---
         const SUPABASE_URL = 'https://npvjxyxnmdcncupbwdsx.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdmp4eXhubWRjbmN1cGJ3ZHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTU0MjcsImV4cCI6MjA4Mjg3MTQyN30.hZhxWo1iR8O0r66vIeElcsPy1PljtpJ_dEbAOvhrr1Q';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Increment and display total visits (ya'll hoes better not troll ts)
+        // Increment and display total visits (exact logic from total-views.html)
         async function initTotalVisits() {
             const { data, error } = await supabaseClient.rpc('increment_views');
             const el = document.getElementById('total-visits');
@@ -901,6 +1377,7 @@
             } else if (page === 'settings') {
                 settings.style.display = 'block';
                 renderWordsEditor();
+                renderCustomShortcuts();
             } else if (page === 'customapps') {
                 customAppsView.style.display = 'block'; 
                 renderAppList();
@@ -1289,7 +1766,7 @@
         }
 
         function resetShortcuts() {
-            shortcuts = { home: 'H', games: 'G', panic: 'P' };
+            shortcuts = { home: 'H', games: 'G', panic: 'P', custom: [] };
             localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
             syncShortcutUI();
         }
@@ -1298,6 +1775,236 @@
             document.getElementById('sc-home').value = shortcuts.home;
             document.getElementById('sc-games').value = shortcuts.games;
             document.getElementById('sc-panic').value = shortcuts.panic;
+            renderCustomShortcuts();
+        }
+
+        // --- CUSTOM KEYBINDS ---
+        function renderCustomShortcuts() {
+            const list = document.getElementById('custom-shortcuts-list');
+            if (!list) return;
+            list.innerHTML = '';
+            const pageNames = { home:'Home', games:'Games', ai:'AI Terminal', proxy:'Proxy', customapps:'Custom Apps', marketplace:'Marketplace', settings:'Settings' };
+            shortcuts.custom.forEach((sc, i) => {
+                const row = document.createElement('div');
+                row.className = 'custom-shortcut-row';
+                row.innerHTML = `
+                    <input type="text" class="shortcut-input" value="${sc.key}" readonly style="width:60px; flex-shrink:0;" onclick="captureCustomShortcutKey(${i})">
+                    <span style="flex:1; font-size:0.85rem; color:var(--text-dim)">→ Alt + ${sc.key} opens <strong style="color:white">${pageNames[sc.action] || sc.action}</strong></span>
+                    <button class="word-del-btn" onclick="deleteCustomShortcut(${i})">✕</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function captureNewShortcutKey() {
+            const input = document.getElementById('new-sc-key');
+            input.value = "...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT" && key !== "META") {
+                    input.value = key;
+                    window.removeEventListener('keydown', listener);
+                    input.blur();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function captureCustomShortcutKey(index) {
+            const rows = document.querySelectorAll('#custom-shortcuts-list .custom-shortcut-row');
+            const input = rows[index]?.querySelector('.shortcut-input');
+            if (!input) return;
+            input.value = "...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT" && key !== "META") {
+                    shortcuts.custom[index].key = key;
+                    localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    window.removeEventListener('keydown', listener);
+                    renderCustomShortcuts();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function addCustomShortcut() {
+            const key = document.getElementById('new-sc-key').value.trim();
+            const action = document.getElementById('new-sc-action').value;
+            if (!key || key === '...' || key === 'KEY') return;
+            shortcuts.custom.push({ key, action });
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            document.getElementById('new-sc-key').value = '';
+            renderCustomShortcuts();
+        }
+
+        function deleteCustomShortcut(index) {
+            shortcuts.custom.splice(index, 1);
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            renderCustomShortcuts();
+        }
+
+        // --- ABOUT:BLANK CLOAK ---
+        function openAboutBlankCloak() {
+            const newTab = window.open('about:blank', '_blank');
+            if (!newTab) { alert('Pop-up blocked! Allow pop-ups for this site.'); return; }
+            const script = `<script>
+(async () => { 
+    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@latest/ghostlinksinglefile.html?v=" + Date.now();
+    const response = await fetch(url); 
+    const html = await response.text(); 
+    document.open(); 
+    document.write(html); 
+    document.close(); 
+})(); 
+<\/script>`;
+            newTab.document.write(script);
+            newTab.document.close();
+        }
+
+        // --- README MODAL ---
+        let readmeLoaded = false;
+        let versionsLoaded = false;
+        let activeReadmeTab = 'readme';
+
+        async function openReadmeModal() {
+            document.getElementById('readme-overlay').style.display = 'flex';
+            if (activeReadmeTab === 'readme' && !readmeLoaded) {
+                await loadReadmeContent();
+            }
+        }
+
+        function closeReadmeModal() {
+            document.getElementById('readme-overlay').style.display = 'none';
+        }
+
+        function switchReadmeTab(tab) {
+            activeReadmeTab = tab;
+            document.getElementById('tab-btn-readme').classList.toggle('active', tab === 'readme');
+            document.getElementById('tab-btn-versions').classList.toggle('active', tab === 'versions');
+            document.getElementById('readme-panel').classList.toggle('active', tab === 'readme');
+            document.getElementById('versions-panel').classList.toggle('active', tab === 'versions');
+
+            if (tab === 'readme' && !readmeLoaded) loadReadmeContent();
+            if (tab === 'versions' && !versionsLoaded) loadVersionsList();
+        }
+
+        async function loadReadmeContent() {
+            const panel = document.getElementById('readme-panel');
+            try {
+                const url = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/README.md';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const md = await res.text();
+                panel.innerHTML = parseMarkdown(md);
+                readmeLoaded = true;
+            } catch(e) {
+                panel.innerHTML = `<p style="color:#ff4444">Failed to load README. Check your connection.</p>`;
+            }
+        }
+
+        async function loadVersionsList() {
+            const list = document.getElementById('versions-list');
+            try {
+                const apiUrl = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/commits?path=ghostlinksinglefile.html&per_page=30';
+                const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) throw new Error('API error');
+                const commits = await res.json();
+
+                list.innerHTML = '';
+                commits.forEach(commit => {
+                    const sha = commit.sha;
+                    const shortSha = sha.slice(0, 7);
+                    const msg = commit.commit.message || '';
+                    const nlIdx = msg.indexOf('\n');
+                    const title = (nlIdx > -1 ? msg.slice(0, nlIdx) : msg).trim() || 'Untitled';
+                    const body = nlIdx > -1 ? msg.slice(nlIdx).trim() : '';
+                    const author = commit.commit.author?.name || 'Unknown';
+                    const dateRaw = commit.commit.author?.date || '';
+                    const dateStr = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+                    const item = document.createElement('div');
+                    item.className = 'version-item';
+                    item.innerHTML = `
+                        <div class="version-sha">${shortSha}</div>
+                        <div class="version-info">
+                            <div class="version-title">${title}</div>
+                            <div class="version-meta">${author} · ${dateStr}</div>
+                        </div>
+                        ${body ? `<div class="version-has-body">DETAILS</div>` : ''}
+                    `;
+                    item.onclick = () => showVersionDetail(sha, title, body, author, dateStr, shortSha);
+                    list.appendChild(item);
+                });
+
+                versionsLoaded = true;
+            } catch(e) {
+                list.innerHTML = `<p style="color:#ff4444; font-size:0.85rem;">Failed to load commits. Check your connection.</p>`;
+            }
+        }
+
+        function showVersionDetail(sha, title, body, author, dateStr, shortSha) {
+            document.getElementById('versions-list-view').style.display = 'none';
+            const detail = document.getElementById('versions-detail-view');
+            detail.classList.add('active');
+
+            document.getElementById('vd-title').textContent = title;
+            document.getElementById('vd-meta').innerHTML = `<span>${shortSha}</span> &nbsp;·&nbsp; ${author} &nbsp;·&nbsp; ${dateStr}`;
+            document.getElementById('vd-body').innerHTML = body
+                ? parseMarkdown(body)
+                : `<span class="version-detail-empty">No extended description for this commit.</span>`;
+
+            // scroll the versions panel back to top
+            document.getElementById('versions-panel').scrollTop = 0;
+        }
+
+        function versionsBackToList() {
+            document.getElementById('versions-list-view').style.display = 'block';
+            document.getElementById('versions-detail-view').classList.remove('active');
+        }
+
+        function parseMarkdown(md) {
+            let html = md
+                // Escape HTML
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                // Fenced code blocks
+                .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // Headers
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                // Bold + italic
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                // Blockquote
+                .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+                // HR
+                .replace(/^---$/gm, '<hr>')
+                // Unordered list items
+                .replace(/^\s*[-*+] (.+)$/gm, '<li>$1</li>')
+                // Ordered list items
+                .replace(/^\s*\d+\. (.+)$/gm, '<li>$1</li>')
+                // Links
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                // Images
+                .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">')
+                // Paragraphs (double newlines)
+                .replace(/\n{2,}/g, '\n\n')
+                .split('\n\n')
+                .map(block => {
+                    block = block.trim();
+                    if (!block) return '';
+                    if (/^<(h[1-6]|pre|blockquote|hr|ul|ol|li)/.test(block)) return block;
+                    // Wrap consecutive <li> items
+                    if (block.includes('<li>')) return `<ul>${block}</ul>`;
+                    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+                })
+                .join('\n');
+            return html;
         }
 
         // --- TYPEWRITER WORDS EDITOR ---
@@ -1403,21 +2110,37 @@
             const title = document.getElementById('cloak-title').value;
             const icon = document.getElementById('cloak-icon').value;
             if (title) document.title = title;
-            let link = document.querySelector("link[rel*='icon']");
-            if (!link) {
-                link = document.createElement('link'); link.rel = 'shortcut icon';
+            // Remove all existing favicon links to force the browser to refresh
+            document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
+            if (icon) {
+                const link = document.createElement('link');
+                link.rel = 'shortcut icon';
+                link.type = 'image/x-icon';
+                link.href = icon;
                 document.head.appendChild(link);
             }
-            if (icon) link.href = icon;
             saveConfig();
         }
 
         function applyTheme() {
             const color = document.getElementById('theme-color').value;
-            const font = document.getElementById('font-select').value;
+            const fontSelectVal = document.getElementById('font-select').value;
+            const customFontFamily = document.getElementById('font-custom-family')?.value.trim();
+            const fontToApply = customFontFamily || fontSelectVal;
             document.documentElement.style.setProperty('--accent', color);
             document.documentElement.style.setProperty('--accent-glow', color + '4D');
-            document.documentElement.style.setProperty('--font', font);
+            document.documentElement.style.setProperty('--font', fontToApply);
+            // Keep color picker in sync with text input
+            try { document.getElementById('theme-picker').value = color; } catch(e) {}
+            applyTextColors();
+            saveConfig();
+        }
+
+        function applyTextColors() {
+            const primary = document.getElementById('text-primary-picker')?.value || '#ffffff';
+            const dim = document.getElementById('text-dim-picker')?.value || '#94a3b8';
+            document.documentElement.style.setProperty('--text-primary', primary);
+            document.documentElement.style.setProperty('--text-dim', dim);
             saveConfig();
         }
 
@@ -1432,8 +2155,46 @@
                 bgUrl: document.getElementById('bg-url').value,
                 bgBlur: document.getElementById('bg-blur-input').value,
                 bgBright: document.getElementById('bg-bright-input').value,
-                font: document.getElementById('font-select').value
+                font: document.getElementById('font-select').value,
+                fontUrl: document.getElementById('font-url-input')?.value || '',
+                fontCustomFamily: document.getElementById('font-custom-family')?.value || '',
+                initTarget: document.getElementById('init-target-select')?.value || 'games',
+                clockFormat: document.getElementById('clock-format-select')?.value || '24h-s',
+                dateFormat: document.getElementById('date-format-select')?.value || 'full',
+                textPrimary: document.getElementById('text-primary-picker')?.value || '#ffffff',
+                textDim: document.getElementById('text-dim-picker')?.value || '#94a3b8'
             }));
+        }
+
+        function clearBackground() {
+            document.getElementById('bg-url').value = '';
+            applyBackground('url', '');
+        }
+
+        function loadCustomFont(silentLoad) {
+            const url = document.getElementById('font-url-input').value.trim();
+            const familyInput = document.getElementById('font-custom-family');
+            if (!url) return;
+
+            // Remove existing custom font stylesheet
+            document.getElementById('custom-font-link')?.remove();
+            const link = document.createElement('link');
+            link.id = 'custom-font-link';
+            link.rel = 'stylesheet';
+            link.href = url;
+            document.head.appendChild(link);
+
+            // Auto-detect font family name from Google Fonts URL if not provided
+            if (!familyInput.value.trim()) {
+                const match = url.match(/[?&]family=([^&:]+)/);
+                if (match) {
+                    const detected = decodeURIComponent(match[1].replace(/\+/g, ' ').split(':')[0]);
+                    familyInput.value = detected;
+                }
+            }
+
+            applyTheme();
+            if (!silentLoad) saveConfig();
         }
 
         function resetSettings() { 
@@ -1448,8 +2209,42 @@
             const now = new Date();
             const clockEl = document.getElementById('home-clock');
             const dateEl = document.getElementById('home-date');
-            if(clockEl) clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            if(dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+            const clockFmt = document.getElementById('clock-format-select')?.value || '24h-s';
+            const dateFmt = document.getElementById('date-format-select')?.value || 'full';
+
+            if (clockEl) {
+                let timeStr;
+                if (clockFmt === '24h-s') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else if (clockFmt === '24h') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                } else if (clockFmt === '12h-s') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else if (clockFmt === '12h') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+                } else if (clockFmt === 'off') {
+                    timeStr = '';
+                }
+                clockEl.textContent = timeStr;
+                clockEl.style.display = clockFmt === 'off' ? 'none' : '';
+            }
+
+            if (dateEl) {
+                let dateStr;
+                if (dateFmt === 'full') {
+                    dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+                } else if (dateFmt === 'short') {
+                    dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+                } else if (dateFmt === 'numeric') {
+                    dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                } else if (dateFmt === 'iso') {
+                    dateStr = now.toISOString().slice(0, 10);
+                } else if (dateFmt === 'off') {
+                    dateStr = '';
+                }
+                dateEl.textContent = dateStr;
+                dateEl.style.display = dateFmt === 'off' ? 'none' : '';
+            }
         }
 
         let wordIdx = 0, charIdx = 0, isDeleting = false;
@@ -1494,11 +2289,31 @@
                 document.getElementById('cloak-title').value = saved.title || "";
                 document.getElementById('cloak-icon').value = saved.icon || "";
                 document.getElementById('theme-color').value = saved.color || "#6ecbff";
+                document.getElementById('theme-picker').value = saved.color || "#6ecbff";
                 document.getElementById('bg-picker').value = saved.bgColor || "#000000";
                 document.getElementById('bg-url').value = saved.bgUrl || "";
                 document.getElementById('bg-blur-input').value = saved.bgBlur || "0";
                 document.getElementById('bg-bright-input').value = saved.bgBright || "100";
                 document.getElementById('font-select').value = saved.font || "'Courier New', monospace";
+
+                // Restore custom font
+                if (saved.fontUrl) {
+                    document.getElementById('font-url-input').value = saved.fontUrl;
+                    loadCustomFont(true);
+                }
+                if (saved.fontCustomFamily) {
+                    document.getElementById('font-custom-family').value = saved.fontCustomFamily;
+                }
+
+                // Restore homescreen settings
+                if (saved.initTarget) document.getElementById('init-target-select').value = saved.initTarget;
+                if (saved.clockFormat) document.getElementById('clock-format-select').value = saved.clockFormat;
+                if (saved.dateFormat) document.getElementById('date-format-select').value = saved.dateFormat;
+
+                // Restore text colors
+                if (saved.textPrimary) document.getElementById('text-primary-picker').value = saved.textPrimary;
+                if (saved.textDim) document.getElementById('text-dim-picker').value = saved.textDim;
+                applyTextColors();
                 
                 applyCloak(); 
                 applyTheme();
@@ -1518,6 +2333,10 @@
                     if (key === shortcuts.home) nav('home');
                     if (key === shortcuts.games) nav('games');
                     if (key === shortcuts.panic) usePreset(tabPresets.length - 1); 
+                    // Custom shortcuts
+                    shortcuts.custom.forEach(sc => {
+                        if (key === sc.key) nav(sc.action);
+                    });
                 }
             });
 
@@ -1554,6 +2373,9 @@
             // Initialize Supabase features
             initTotalVisits();
             initOnlineUsers();
+
+            // Check for updates
+            checkForUpdates();
         };
 
         function sendThemeToIframe() {
@@ -1580,6 +2402,56 @@
                 sendThemeToIframe();
             }
         });
+
+        // --- UPDATE CHECKER ---
+        async function checkForUpdates() {
+            try {
+                const apiUrl = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/commits?path=ghostlinksinglefile.html&page=1&per_page=1';
+                const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) return;
+                const commits = await res.json();
+                if (!commits || !commits.length) return;
+
+                const latest = commits[0];
+                const latestSha = latest.sha;
+                const seenSha = localStorage.getItem('ghostlink_seen_commit');
+
+                if (seenSha === latestSha) return; // already seen this commit
+
+                // Parse commit message: first line = title, rest = body
+                const fullMessage = latest.commit.message || '';
+                const nlIdx = fullMessage.indexOf('\n');
+                const title = nlIdx > -1 ? fullMessage.slice(0, nlIdx).trim() : fullMessage.trim();
+                const body = nlIdx > -1 ? fullMessage.slice(nlIdx).trim() : '';
+
+                const authorName = latest.commit.author?.name || 'Unknown';
+                const dateRaw = latest.commit.author?.date || '';
+                const dateFormatted = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                const shortSha = latestSha.slice(0, 7);
+
+                // Populate and show modal
+                document.getElementById('update-title').textContent = title || 'Untitled update';
+                document.getElementById('update-body').innerHTML = body
+                    ? parseMarkdown(body)
+                    : '<p style="color:var(--text-dim); font-style:italic;">No extended description provided.</p>';
+                document.getElementById('update-meta').innerHTML =
+                    `<span>${shortSha}</span> &nbsp;·&nbsp; ${authorName} &nbsp;·&nbsp; ${dateFormatted}`;
+
+                // Store sha on the modal element so dismissUpdate can access it
+                document.getElementById('update-overlay').dataset.sha = latestSha;
+                document.getElementById('update-overlay').style.display = 'flex';
+
+            } catch (e) {
+                console.warn('Update check failed:', e);
+            }
+        }
+
+        function dismissUpdate() {
+            const overlay = document.getElementById('update-overlay');
+            const sha = overlay.dataset.sha;
+            if (sha) localStorage.setItem('ghostlink_seen_commit', sha);
+            overlay.style.display = 'none';
+        }
     </script>
 </body>
 </html>
