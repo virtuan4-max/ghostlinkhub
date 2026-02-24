@@ -6,7 +6,6 @@
     <title>GhostLink AI</title>
     
     <script>
-    // Immediate execution: No function wrapper needed
     const params = new URLSearchParams(window.location.search);
     if (params.get('accent')) document.documentElement.style.setProperty('--accent-color', params.get('accent'));
     if (params.get('bg')) document.documentElement.style.setProperty('--bg-dark', params.get('bg'));
@@ -20,224 +19,311 @@
             --bg-dark: #000000;
             --bg-panel: #050505;
             --text-main: #ffffff;
+            --sidebar-width: 220px;
         }
 
         body, html {
             background-color: var(--bg-dark);
             color: var(--accent-color);
             font-family: 'Courier New', monospace;
-            padding: 0;
-            margin: 0;
+            padding: 0; margin: 0;
             height: 100vh;
             overflow: hidden;
         }
 
-        #response-viewport::-webkit-scrollbar { width: 4px; }
-        #response-viewport::-webkit-scrollbar-track { background: var(--bg-dark); }
-        #response-viewport::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
+        #response-viewport::-webkit-scrollbar,
+        #history-list::-webkit-scrollbar { width: 4px; }
+        #response-viewport::-webkit-scrollbar-track,
+        #history-list::-webkit-scrollbar-track { background: var(--bg-dark); }
+        #response-viewport::-webkit-scrollbar-thumb,
+        #history-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
 
-        .top-menu { position: fixed; top: 25px; right: 25px; z-index: 2000; display: flex; gap: 20px; align-items: center; }
-        .menu-icon { font-size: 24px; cursor: pointer; text-shadow: 0 0 10px var(--accent-color); color: var(--accent-color); transition: transform 0.2s; }
+        .top-menu-right {
+            position: fixed; top: 25px; right: 25px;
+            z-index: 2000; display: flex; gap: 20px; align-items: center;
+        }
+        .top-menu-left {
+            position: fixed; top: 25px; left: 25px;
+            z-index: 1400; display: flex; gap: 16px; align-items: center;
+        }
+        .menu-icon {
+            font-size: 24px; cursor: pointer;
+            text-shadow: 0 0 10px var(--accent-color);
+            color: var(--accent-color); transition: transform 0.2s;
+        }
         .menu-icon:hover { transform: rotate(45deg); }
-        
-        #settings-modal, #info-modal, #api-setup-modal {
-            display: none;
-            position: fixed;
+
+        .icon-btn {
+            width: 24px; height: 24px; cursor: pointer;
+            color: var(--accent-color); opacity: 0.85;
+            transition: opacity 0.2s, filter 0.2s, transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover {
+            opacity: 1;
+            filter: drop-shadow(0 0 6px var(--accent-color));
+            transform: scale(1.1);
+        }
+        .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+        #key-status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #333; display: inline-block;
+            box-shadow: 0 0 6px currentColor;
+            transition: background 0.4s, box-shadow 0.4s;
+        }
+        #key-status-dot.cloud  { background: #6ecbff; box-shadow: 0 0 8px #6ecbff; }
+        #key-status-dot.custom { background: #00ff41; box-shadow: 0 0 8px #00ff41; }
+        #key-status-dot.error  { background: #ff4e4e; box-shadow: 0 0 8px #ff4e4e; animation: blink 0.6s infinite; }
+        #key-status-dot.loading{ background: #ffcc00; box-shadow: 0 0 8px #ffcc00; animation: blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+        #history-sidebar {
+            position: fixed; top: 0; left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: #030303;
+            border-right: 1px solid rgba(110,203,255,0.12);
+            z-index: 1600;
+            display: flex; flex-direction: column;
+            transform: translateX(calc(-1 * var(--sidebar-width)));
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 4px 0 30px rgba(0,0,0,0.8);
+        }
+        #history-sidebar.open { transform: translateX(0); }
+
+        .sidebar-header {
+            padding: 22px 16px 14px;
+            border-bottom: 1px solid rgba(110,203,255,0.08);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 10px; letter-spacing: 3px;
+            color: var(--accent-color); opacity: 0.7;
+            text-transform: uppercase;
+        }
+        .sidebar-close {
+            font-size: 18px; cursor: pointer; opacity: 0.5;
+            transition: opacity 0.2s; color: var(--accent-color); line-height: 1;
+        }
+        .sidebar-close:hover { opacity: 1; }
+
+        #history-list {
+            flex: 1; overflow-y: auto;
+            padding: 10px 8px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .history-empty {
+            font-size: 11px; color: rgba(110,203,255,0.3);
+            text-align: center; padding: 30px 10px; letter-spacing: 1px;
+        }
+        .history-item {
+            display: flex; align-items: center;
+            border-radius: 6px; cursor: pointer;
+            transition: background 0.15s; border: 1px solid transparent; overflow: hidden;
+        }
+        .history-item:hover { background: rgba(110,203,255,0.05); border-color: rgba(110,203,255,0.1); }
+        .history-item.active { background: rgba(110,203,255,0.08); border-color: rgba(110,203,255,0.2); }
+        .history-item-label {
+            flex: 1; padding: 9px 10px;
+            font-size: 11px; color: rgba(255,255,255,0.75);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px;
+        }
+        .history-item.active .history-item-label { color: var(--accent-color); }
+        .history-delete {
+            padding: 9px 8px; color: rgba(255,78,78,0);
+            font-size: 13px; cursor: pointer;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0; border-radius: 0 6px 6px 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .history-item:hover .history-delete { color: rgba(255,78,78,0.5); }
+        .history-delete:hover { color: #ff4e4e !important; background: rgba(255,78,78,0.1); }
+
+        #sidebar-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 1400;
+        }
+        #sidebar-backdrop.visible { display: block; }
+
+        #settings-modal, #info-modal {
+            display: none; position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(5px);
-            z-index: 3000;
-            justify-content: center;
-            align-items: center;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+            z-index: 3000; justify-content: center; align-items: center;
         }
         .modal-content {
-            background: var(--bg-panel);
-            border: 1px solid var(--accent-color);
-            width: 500px;
-            max-width: 95%;
-            padding: 0;
-            border-radius: 12px;
-            box-shadow: 0 0 30px var(--accent-glow);
-            overflow: hidden;
+            background: var(--bg-panel); border: 1px solid var(--accent-color);
+            width: 520px; max-width: 95%; padding: 0;
+            border-radius: 12px; box-shadow: 0 0 30px var(--accent-glow); overflow: hidden;
         }
-        .modal-tabs { display: flex; border-bottom: 1px solid rgba(110, 203, 255, 0.1); }
+        .modal-tabs { display: flex; border-bottom: 1px solid rgba(110,203,255,0.1); }
         .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 12px; opacity: 0.6; }
-        .tab.active { opacity: 1; border-bottom: 2px solid var(--accent-color); background: rgba(110, 203, 255, 0.05); }
-
+        .tab.active { opacity: 1; border-bottom: 2px solid var(--accent-color); background: rgba(110,203,255,0.05); }
         .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
         .setting-field { margin-bottom: 20px; }
         .setting-field label { display: block; font-size: 11px; margin-bottom: 8px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; }
-        
         .setting-field input, .setting-field textarea, .setting-field select {
-            width: 100%; background: #0a0a0a; border: 1px solid rgba(110, 203, 255, 0.3); color: #fff;
+            width: 100%; background: #0a0a0a; border: 1px solid rgba(110,203,255,0.3); color: #fff;
             padding: 10px; font-family: inherit; box-sizing: border-box; outline: none; border-radius: 4px;
         }
         .setting-field input:focus { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-glow); }
-
+        .setting-field input:disabled { opacity: 0.35; cursor: not-allowed; }
         .modal-footer { display: flex; gap: 10px; padding: 20px; background: rgba(0,0,0,0.3); }
-        .modal-btn { flex: 1; padding: 12px; border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); cursor: pointer; font-family: inherit; border-radius: 4px; transition: 0.2s; }
+        .modal-btn { flex: 1; padding: 12px; border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); cursor: pointer; font-family: inherit; border-radius: 4px; transition: 0.2s; font-size: 12px; }
         .modal-btn.primary { background: var(--accent-color); color: #000; font-weight: bold; }
         .modal-btn:hover { background: var(--accent-glow); }
+        .modal-btn.primary:hover { background: var(--accent-color); opacity: 0.85; }
+        .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; }
+        .toggle-label-text { font-size: 11px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; }
+        .toggle-switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; inset: 0; background: #1a1a1a; border: 1px solid rgba(110,203,255,0.3); border-radius: 22px; cursor: pointer; transition: 0.3s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; top: 3px; background: var(--accent-color); border-radius: 50%; transition: 0.3s; opacity: 0.4; }
+        input:checked + .toggle-slider { border-color: var(--accent-color); background: rgba(110,203,255,0.1); }
+        input:checked + .toggle-slider:before { transform: translateX(20px); opacity: 1; }
+
+        .key-info-box {
+            background: rgba(110,203,255,0.04); border: 1px solid rgba(110,203,255,0.15);
+            border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;
+            font-size: 11px; color: #aaa; line-height: 1.7;
+        }
+        .key-info-box strong { color: var(--accent-color); }
+        .cloud-key-controls { display: flex; gap: 10px; margin-top: 10px; }
+        .cloud-key-controls .modal-btn { flex: none; font-size: 11px; padding: 8px 14px; }
+        .setting-divider { border: none; border-top: 1px solid rgba(110,203,255,0.1); margin: 16px 0; }
+        .api-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
+
+        #rotation-badge {
+            font-size: 9px; letter-spacing: 2px; opacity: 0;
+            color: var(--accent-color); transition: opacity 0.5s;
+            position: fixed; bottom: 110px; left: 50%;
+            transform: translateX(-50%); text-align: center; pointer-events: none;
+        }
+        #rotation-badge.visible { opacity: 0.5; }
 
         #app-container { display: flex; flex-direction: column; height: 100vh; }
-        
+
         .center-wrapper {
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             flex-grow: 1; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-
         body.chat-active .center-wrapper {
             flex-grow: 0; height: 70px; flex-direction: row; justify-content: center;
-            padding: 0; border-bottom: 1px solid rgba(110, 203, 255, 0.1);
+            padding: 0; border-bottom: 1px solid rgba(110,203,255,0.1);
         }
-
-        .pulse-star { 
-            font-size: 60px; 
-            text-shadow: 0 0 15px var(--accent-color); 
-            color: var(--accent-color); 
-            display: inline-block;
-            cursor: pointer;
+        .pulse-star {
+            font-size: 60px; text-shadow: 0 0 15px var(--accent-color);
+            color: var(--accent-color); display: inline-block; cursor: pointer;
         }
         body.chat-active .pulse-star { font-size: 28px; margin-right: 15px; }
-        
         .center-text { position: relative; font-size: 24px; font-weight: bold; text-align: center; }
         body.chat-active .center-text { display: none; }
 
         #response-viewport {
-            flex-grow: 1;
-            overflow-y: auto;
-            width: 100%;
-            display: none;
-            flex-direction: column; 
+            flex-grow: 1; overflow-y: auto; width: 100%;
+            display: none; flex-direction: column;
         }
-
         body.chat-active #response-viewport { display: flex; }
 
         #response-container {
-            width: 800px;
-            max-width: 90%;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-            padding: 40px 0 200px 0; 
+            width: 800px; max-width: 90%; margin: 0 auto;
+            display: flex; flex-direction: column; gap: 25px;
+            padding: 40px 0 200px 0;
         }
 
         .user-message {
-            align-self: flex-end;
-            color: #fff;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--accent-color);
-            padding: 15px 20px;
-            border-radius: 15px 15px 2px 15px;
-            max-width: 75%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            align-self: flex-end; color: #fff;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--accent-color);
+            padding: 15px 20px; border-radius: 15px 15px 2px 15px;
+            max-width: 75%; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-
-        .bot-message-wrapper {
-            display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            align-self: flex-start;
-            max-width: 85%;
-        }
-
+        .bot-message-wrapper { display: flex; align-items: flex-start; gap: 15px; align-self: flex-start; max-width: 85%; }
         .bot-content {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--accent-color);
-            padding: 18px 22px;
-            border-radius: 2px 15px 15px 15px;
-            width: 100%;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--accent-color);
+            padding: 18px 22px; border-radius: 2px 15px 15px 15px; width: 100%;
         }
-
         .bot-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .bot-label { font-size: 10px; color: var(--accent-color); opacity: 0.8; font-weight: bold; letter-spacing: 2px; }
-        
         .text-body { line-height: 1.6; color: var(--text-main); font-size: 15px; }
         .text-body p { margin-bottom: 10px; }
         .text-body pre { background: #0a0a0a; padding: 12px; border: 1px solid var(--accent-glow); border-radius: 6px; overflow-x: auto; margin: 10px 0; }
-        .text-body code { font-family: monospace; background: rgba(110, 203, 255, 0.1); padding: 2px 4px; border-radius: 3px; }
+        .text-body code { font-family: monospace; background: rgba(110,203,255,0.1); padding: 2px 4px; border-radius: 3px; }
+
+        .rate-limit-banner {
+            background: rgba(255,78,78,0.08); border: 1px solid rgba(255,78,78,0.4);
+            border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #ff8888;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .rate-limit-banner span { flex: 1; }
+        .switch-key-btn {
+            background: rgba(255,78,78,0.15); border: 1px solid rgba(255,78,78,0.5);
+            color: #ff8888; padding: 6px 12px; border-radius: 4px; cursor: pointer;
+            font-family: inherit; font-size: 11px; letter-spacing: 1px; white-space: nowrap; transition: 0.2s;
+        }
+        .switch-key-btn:hover { background: rgba(255,78,78,0.3); }
 
         .search-area-wrapper {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: linear-gradient(to top, var(--bg-dark) 70%, transparent);
             padding: 20px 0 40px 0; display: flex; flex-direction: column; align-items: center; z-index: 100;
         }
-
-        .preview-container {
-            width: 700px; max-width: 92%; display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
-        }
-        .preview-item {
-            position: relative; width: 50px; height: 50px; border: 1px solid var(--accent-color); border-radius: 4px; overflow: hidden;
-        }
+        .preview-container { width: 700px; max-width: 92%; display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .preview-item { position: relative; width: 50px; height: 50px; border: 1px solid var(--accent-color); border-radius: 4px; overflow: hidden; }
         .preview-item img { width: 100%; height: 100%; object-fit: cover; }
         .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.7); color: #ff4e4e; font-size: 10px; cursor: pointer; padding: 0 3px; }
-
         .search-bar {
             width: 700px; max-width: 92%; background-color: var(--bg-dark); border: 1px solid var(--accent-color);
             border-radius: 14px; padding: 12px 20px; display: flex; align-items: center; gap: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 10px var(--accent-glow);
         }
-        
-        .upload-btn {
-            cursor: pointer;
-            color: var(--accent-color);
-            font-size: 22px;
-            font-weight: bold;
-            line-height: 1;
-            transition: 0.2s;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .upload-btn { cursor: pointer; color: var(--accent-color); font-size: 22px; font-weight: bold; line-height: 1; transition: 0.2s; user-select: none; display: flex; align-items: center; justify-content: center; }
         .upload-btn:hover { transform: scale(1.2); text-shadow: 0 0 10px var(--accent-color); }
-
         .search-bar input { background: none; border: none; color: #fff; font-size: 16px; flex-grow: 1; outline: none; font-family: inherit; }
         .search-bar input::placeholder { color: var(--accent-color); opacity: 0.4; }
         .search-bar input:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .send-btn { cursor: pointer; color: var(--accent-color); font-size: 20px; transition: 0.2s; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
         .send-btn:hover { transform: scale(1.1); text-shadow: 0 0 10px var(--accent-color); }
-        
         .send-btn.generating::before { content: "☐"; font-size: 24px; }
-        .send-btn.generating { color: var(--accent-color); }
         .send-btn.idle::before { content: "⩥"; }
-
         .upload-counter { font-size: 10px; color: var(--accent-color); opacity: 0.6; white-space: nowrap; }
         .session-stats { font-size: 9px; opacity: 0.4; margin-top: 8px; letter-spacing: 1px; text-transform: uppercase; }
-
-        .api-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body id="main-body" onload="init()">
 
-<div class="top-menu">
+<div class="top-menu-left">
+    <div class="icon-btn" onclick="toggleSidebar()" title="Chat History">
+        <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 7 12 12 15.5 14.5"/>
+        </svg>
+    </div>
+    <div class="icon-btn" onclick="startNewChat()" title="New Chat">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 5v14M5 12h14"/>
+        </svg>
+    </div>
+</div>
+
+<div class="top-menu-right">
+    <span id="key-status-dot" class="loading" title="Key status"></span>
     <div class="menu-icon" onclick="openModal('settings-modal')">⨀</div>
 </div>
 
-<div id="api-setup-modal">
-    <div class="modal-content">
-        <div class="modal-tabs">
-            <div class="tab active">System Activation Required</div>
-        </div>
-        <div class="modal-body">
-            <div class="setting-field">
-                <p style="font-size: 13px; color: #ccc; line-height: 1.6;">
-                    To initialize <strong>GHOSTLINK</strong>, you must provide a valid Groq API Key. This key is stored locally in your browser.
-                </p>
-                <ol style="font-size: 12px; color: var(--accent-color); padding-left: 20px;">
-                    <li>Go to <a href="https://console.groq.com/keys" target="_blank" class="api-link">console.groq.com</a></li>
-                    <li>Create a free account and click "Create API Key"</li>
-                    <li>Copy and paste the key below:</li>
-                </ol>
-                <label>Groq API Key</label>
-                <input type="password" id="setup-key-field" placeholder="gsk_...">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="modal-btn primary" onclick="saveInitialKey()">Activate Interface</button>
-        </div>
+<div id="rotation-badge">⟳ KEY ROTATED</div>
+
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+<div id="history-sidebar">
+    <div class="sidebar-header">
+        <span class="sidebar-title">Sessions</span>
+        <span class="sidebar-close" onclick="closeSidebar()">✕</span>
+    </div>
+    <div id="history-list">
+        <div class="history-empty" id="history-empty">No sessions yet.</div>
     </div>
 </div>
 
@@ -248,13 +334,34 @@
             <div class="tab" onclick="switchTab('model')">Model Params</div>
             <div class="tab" onclick="switchTab('appearance')">Appearance</div>
         </div>
-        
         <div class="modal-body" id="modal-body">
             <div id="tab-general">
                 <div class="setting-field">
-                    <label>Groq API Key</label>
-                    <input type="password" id="key-field" placeholder="gsk_..." onchange="saveApiKey(this.value)">
+                    <div class="toggle-row" style="margin-bottom: 12px;">
+                        <span class="toggle-label-text">Use Custom API Key</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="use-custom-key-toggle" onchange="onKeyModeToggle()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="cloud-key-section" class="key-info-box">
+                        <strong>CLOUD MODE ACTIVE</strong><br>
+                        Keys are fetched from the GhostLink vault and rotate automatically to avoid rate limits.
+                        <div class="cloud-key-controls">
+                            <button class="modal-btn" onclick="pickRandomCloudKey()" id="random-key-btn">⟳ Random Key</button>
+                            <button class="modal-btn" onclick="refetchCloudKeys()" id="refetch-btn">↺ Reload Vault</button>
+                        </div>
+                        <div id="cloud-key-count" style="margin-top: 8px; font-size: 10px; color: rgba(110,203,255,0.5);"></div>
+                    </div>
+                    <div id="custom-key-section" style="display:none;">
+                        <label>Groq API Key</label>
+                        <input type="password" id="key-field" placeholder="gsk_..." onchange="saveCustomApiKey(this.value)">
+                        <div style="font-size: 10px; color: rgba(110,203,255,0.4); margin-top: 6px;">
+                            Key stored locally. <a href="https://console.groq.com/keys" target="_blank" class="api-link">Get a key →</a>
+                        </div>
+                    </div>
                 </div>
+                <hr class="setting-divider">
                 <div class="setting-field">
                     <label>Operational Mode</label>
                     <select id="ui-mode" onchange="applyPreset(this.value)">
@@ -269,7 +376,6 @@
                     <textarea id="sys-prompt" rows="8">You are GhostLink, a helpful, advanced and minimal AI.</textarea>
                 </div>
             </div>
-
             <div id="tab-model" style="display:none;">
                 <div class="setting-field">
                     <label>Active Neural Model</label>
@@ -296,7 +402,6 @@
                     </div>
                 </div>
             </div>
-
             <div id="tab-appearance" style="display:none;">
                 <div class="setting-field">
                     <label>Custom Accent Color</label>
@@ -312,39 +417,40 @@
                 </div>
             </div>
         </div>
-
         <div class="modal-footer">
-            <button class="modal-btn" onclick="clearHistory()">Wipe Memory</button>
+            <button class="modal-btn" onclick="startNewChat(); closeModal('settings-modal');">Start New Chat</button>
             <button class="modal-btn primary" onclick="closeModal('settings-modal')">Save & Close</button>
         </div>
     </div>
 </div>
 
-    <div id="info-modal">
-        <div class="modal-content">
-            <div class="modal-tabs">
-                <div class="tab active">System Information</div>
-            </div>
-            <div class="modal-body">
-                <h3 style="font-size: 14px; color: var(--accent-color);">GHOSTLINK INTERFACE</h3>
-                <p style="font-size: 12px; line-height: 1.5; color: #ccc;">
-                    <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE.<br><br>
-                    <strong>OVERVIEW:</strong> GhostLink is a terminal-style AI interface powered by the Groq API. It uses a Llama-based neural backbone to process text and vision data in real-time.<br><br>
-                    <strong>USAGE:</strong> This website acts as an interface for your Groq API key – this means rates + limits apply. Your key is stored locally on this browser. <br><br>
-                    <strong>OPERATIONAL LOGIC:</strong><br>
-                    • <strong>Neural Link:</strong> Connects to cloud-based LLMs via direct API calls to Groq.<br>
-                    • <strong>Memory:</strong> Maintains a volatile 'currentHistory' array in local RAM.<br>
-                    • <strong>Multimodal:</strong> Supports up to 5 simultaneous image uploads via Base64 encoding.<br>
-                    • <strong>Interface:</strong> Single-file client-side architecture.<br><br>
-                    <strong>SECURITY:</strong> Encrypted end-to-end. Session data exists only in local RAM and is purged upon manual wipe or browser refresh.<br><br>
-                    <strong>SECRET</strong> Yes bro it's not v6.7 no I'm not gonna 'grow up'💔🥀
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button class="modal-btn primary" onclick="closeModal('info-modal')">Acknowledge</button>
-            </div>
+<div id="info-modal">
+    <div class="modal-content">
+        <div class="modal-tabs">
+            <div class="tab active">System Information</div>
+        </div>
+        <div class="modal-body">
+            <h3 style="font-size: 14px; color: var(--accent-color);">GHOSTLINK INTERFACE</h3>
+            <p style="font-size: 12px; line-height: 1.5; color: #ccc;">
+                <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE.<br><br>
+                <strong>OVERVIEW:</strong> GhostLink is a terminal-style AI interface powered by the Groq API.<br><br>
+                <strong>USAGE:</strong> This website uses cloud-managed API keys fetched from a secure vault and rotated automatically. You can optionally supply your own key in Settings.<br><br>
+                <strong>OPERATIONAL LOGIC:</strong><br>
+                • <strong>Neural Link:</strong> Connects to cloud-based LLMs via direct API calls to Groq.<br>
+                • <strong>Memory:</strong> Maintains a volatile 'currentHistory' array in local RAM.<br>
+                • <strong>Multimodal:</strong> Supports up to 5 simultaneous image uploads via Base64 encoding.<br>
+                • <strong>Key Rotation:</strong> Cloud keys rotate every message to distribute load and avoid limits.<br>
+                • <strong>Chat History:</strong> Sessions saved to localStorage, click the clock icon to browse.<br>
+                • <strong>Interface:</strong> Single-file client-side architecture.<br><br>
+                <strong>SECURITY:</strong> Encrypted end-to-end. Session data exists only in local RAM and is purged upon manual wipe or browser refresh.<br><br>
+                <strong>SECRET</strong> Yes bro it's not v6.7 no I'm not gonna 'grow up'💔🥀
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn primary" onclick="closeModal('info-modal')">Acknowledge</button>
         </div>
     </div>
+</div>
 
 <div id="app-container">
     <div class="center-wrapper">
@@ -368,297 +474,507 @@
         <div id="upload-count" class="upload-counter">0/5</div>
         <div class="send-btn idle" id="send-btn" onclick="handleAction()"></div>
     </div>
-    <div class="session-stats">ENCRYPTED END-TO-END | GHOSTLINK CAN HALLUCINATE</div>
+    <div class="session-stats" id="session-stats">ENCRYPTED END-TO-END | GHOSTLINK CAN HALLUCINATE</div>
 </div>
 
 <script>
-const inputField = document.getElementById('chat-input');
-const responseBox = document.getElementById('response-container');
-const viewport = document.getElementById('response-viewport');
-const body = document.getElementById('main-body');
-const star = document.getElementById('main-star');
-const sendBtn = document.getElementById('send-btn');
-const previewBar = document.getElementById('preview-bar');
+// ─────────────────────────────────────────
+//  WORKER CONFIG
+// ─────────────────────────────────────────
+const WORKER_URL = "https://still-hill-b33b.virtuan4.workers.dev/";
+const WORKER_PASSWORD = "hello";
+const TOTAL_WORKER_KEYS = 10;
+
+// ─────────────────────────────────────────
+//  KEY VAULT STATE
+// ─────────────────────────────────────────
+let cloudKeys = [];
+let cloudKeyIndex = 0;
+let useCustomKey = false;
+
+// ─────────────────────────────────────────
+//  CHAT HISTORY STATE
+// ─────────────────────────────────────────
+const HISTORY_STORAGE_KEY = 'gl_chat_sessions';
+let sessions = [];
+let activeSessionId = null;
+
+// ─────────────────────────────────────────
+//  DOM REFS
+// ─────────────────────────────────────────
+const inputField    = document.getElementById('chat-input');
+const responseBox   = document.getElementById('response-container');
+const viewport      = document.getElementById('response-viewport');
+const body          = document.getElementById('main-body');
+const star          = document.getElementById('main-star');
+const sendBtn       = document.getElementById('send-btn');
+const previewBar    = document.getElementById('preview-bar');
 const uploadCounter = document.getElementById('upload-count');
+const keyStatusDot  = document.getElementById('key-status-dot');
+const rotationBadge = document.getElementById('rotation-badge');
+const sessionStats  = document.getElementById('session-stats');
+const historyList   = document.getElementById('history-list');
+const historyEmpty  = document.getElementById('history-empty');
+const sidebar       = document.getElementById('history-sidebar');
+const backdrop      = document.getElementById('sidebar-backdrop');
 
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const MAX_HISTORY_WINDOW = 4;
 
-let isFirstMessage = true;
-let isGenerating = false;
-let abortController = null;
-let selectedFiles = [];
-let rotationAngle = 0;
+let isFirstMessage   = true;
+let isGenerating     = false;
+let abortController  = null;
+let selectedFiles    = [];
+let rotationAngle    = 0;
 let animationFrameId = null;
-let currentHistory = []; 
+let currentHistory   = [];
 
 const presets = {
-    ghost: { color: '#6ecbff', prompt: `You are GhostLink, a helpful, and minimal AI` },
-    draft: { color: '#bc6eff', prompt: 'You are GhostLink, a highly-capable writer AI' },
+    ghost:  { color: '#6ecbff', prompt: 'You are GhostLink, a helpful, and minimal AI' },
+    draft:  { color: '#bc6eff', prompt: 'You are GhostLink, a highly-capable writer AI' },
     GLaDOS: { color: '#ff4e4e', prompt: 'You are GhostLink, a high-functioning AI with a cynical/condescending/dark tone.' },
-    learn: { color: '#00ff41', prompt: 'You are GhostLink, an AI for creativity, learning and studying.' }
+    learn:  { color: '#00ff41', prompt: 'You are GhostLink, an AI for creativity, learning and studying.' }
 };
 
+// ─────────────────────────────────────────
+//  THEME SYNC
+// ─────────────────────────────────────────
 function syncGhostLinkTheme() {
-    // 1. Check if we are inside the GhostLink Single File
     if (window.self !== window.top) {
-        
-        // 2. Setup the listener for when the parent sends colors
         window.addEventListener('message', (event) => {
             if (event.data.type === 'GHOSTLINK_THEME_DATA') {
                 const { accent, bg, font } = event.data.theme;
                 const root = document.documentElement;
-
-                if (accent) {
-                    root.style.setProperty('--accent-color', accent);
-                    root.style.setProperty('--accent-glow', accent + '4D'); // 30% transparency
-                }
+                if (accent) { root.style.setProperty('--accent-color', accent); root.style.setProperty('--accent-glow', accent + '4D'); }
                 if (bg) root.style.setProperty('--bg-dark', bg);
                 if (font) root.style.setProperty('font-family', font);
             }
         });
-
-        // 3. IMMEDIATELY ask the parent for the theme
         window.parent.postMessage({ type: 'GHOSTLINK_QUERY_THEME' }, '*');
     }
 }
-
-// Run this as soon as the DOM is ready for instant application
 document.addEventListener('DOMContentLoaded', syncGhostLinkTheme);
 
-function init() { 
-    applyPreset('ghost'); 
-    const savedKey = localStorage.getItem('groq_api_key');
-    if (savedKey) {
-        document.getElementById('key-field').value = savedKey;
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+async function init() {
+    applyPreset('ghost');
+    loadSessionsFromStorage();
+    renderSidebar();
+
+    const savedMode = localStorage.getItem('gl_key_mode');
+    useCustomKey = savedMode === 'custom';
+    document.getElementById('use-custom-key-toggle').checked = useCustomKey;
+    renderKeyModeUI();
+
+    if (useCustomKey) {
+        const savedKey = localStorage.getItem('groq_api_key');
+        if (savedKey) document.getElementById('key-field').value = savedKey;
+        setKeyStatus('custom');
     } else {
-        openModal('api-setup-modal');
+        await fetchAllCloudKeys();
     }
 }
 
-function saveInitialKey() {
-    const key = document.getElementById('setup-key-field').value.trim();
-    if (key.startsWith('gsk_')) {
-        saveApiKey(key);
-        document.getElementById('key-field').value = key;
-        closeModal('api-setup-modal');
-    } else {
-        alert("Please enter a valid Groq API key (starts with gsk_)");
-    }
+// ─────────────────────────────────────────
+//  SESSION / HISTORY MANAGEMENT
+// ─────────────────────────────────────────
+function loadSessionsFromStorage() {
+    try {
+        const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+        sessions = raw ? JSON.parse(raw) : [];
+    } catch { sessions = []; }
 }
 
-function saveApiKey(val) {
-    localStorage.setItem('groq_api_key', val);
+function saveSessionsToStorage() {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(sessions));
 }
 
-function animateStar() {
-    if (!isGenerating) {
-        star.style.transform = `rotate(0deg)`;
-        cancelAnimationFrame(animationFrameId);
+function createSession(firstUserMessage) {
+    const raw = firstUserMessage.trim();
+    const title = (raw.length > 15 ? raw.slice(0, 15) + '...' : raw) || 'New Session';
+    const id = 'sess_' + Date.now();
+    const session = { id, title, history: [], timestamp: Date.now() };
+    sessions.unshift(session);
+    activeSessionId = id;
+    saveSessionsToStorage();
+    renderSidebar();
+    return session;
+}
+
+function updateActiveSession() {
+    if (!activeSessionId) return;
+    const s = sessions.find(s => s.id === activeSessionId);
+    if (s) { s.history = [...currentHistory]; s.timestamp = Date.now(); saveSessionsToStorage(); }
+}
+
+function loadSession(id) {
+    const s = sessions.find(s => s.id === id);
+    if (!s) return;
+    updateActiveSession();
+    activeSessionId = s.id;
+    currentHistory = [...s.history];
+    responseBox.innerHTML = '';
+    isFirstMessage = false;
+    body.classList.add('chat-active');
+    const msgs = currentHistory.filter(m => m.role !== 'system');
+    msgs.forEach(m => {
+        if (m.role === 'user') {
+            const text = typeof m.content === 'string' ? m.content : (m.content[0]?.text || '');
+            const div = document.createElement('div');
+            div.className = 'user-message';
+            div.textContent = text;
+            responseBox.appendChild(div);
+        } else if (m.role === 'assistant') {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bot-message-wrapper';
+            wrapper.innerHTML = `
+                <div class="pulse-star" style="font-size:20px;">◈</div>
+                <div class="bot-content">
+                    <div class="bot-label-row"><div class="bot-label">GHOSTLINK</div></div>
+                    <div class="text-body"></div>
+                </div>`;
+            responseBox.appendChild(wrapper);
+            wrapper.querySelector('.text-body').innerHTML = marked.parse(m.content);
+        }
+    });
+    viewport.scrollTop = viewport.scrollHeight;
+    renderSidebar();
+    closeSidebar();
+    inputField.focus();
+}
+
+function deleteSession(id, event) {
+    event.stopPropagation();
+    sessions = sessions.filter(s => s.id !== id);
+    saveSessionsToStorage();
+    if (activeSessionId === id) { _clearChatUI(); activeSessionId = null; }
+    renderSidebar();
+}
+
+function renderSidebar() {
+    historyList.innerHTML = '';
+    if (sessions.length === 0) {
+        historyList.appendChild(historyEmpty);
+        historyEmpty.style.display = 'block';
         return;
     }
-    rotationAngle += (2 + Math.sin(Date.now() / 500) * 5); 
-    star.style.transform = `rotate(${rotationAngle}deg)`;
-    animationFrameId = requestAnimationFrame(animateStar);
-}
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = error => reject(error);
+    sessions.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'history-item' + (s.id === activeSessionId ? ' active' : '');
+        item.innerHTML = `
+            <div class="history-item-label">${escapeHtml(s.title)}</div>
+            <div class="history-delete" title="Delete">✕</div>
+        `;
+        item.querySelector('.history-item-label').addEventListener('click', () => loadSession(s.id));
+        item.querySelector('.history-delete').addEventListener('click', (e) => deleteSession(s.id, e));
+        historyList.appendChild(item);
     });
 }
 
-function trimHistory(history, maxMessages = MAX_HISTORY_WINDOW) {
-    if (history.length <= maxMessages + 1) return history;
-    return [history[0], ...history.slice(-maxMessages)];
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function handleFileUpload(input) {
-    const files = Array.from(input.files);
-    files.forEach(file => { if (selectedFiles.length < 5) selectedFiles.push(file); });
-    input.value = ""; 
-    renderPreviews();
+// ─────────────────────────────────────────
+//  SIDEBAR
+// ─────────────────────────────────────────
+function toggleSidebar() { sidebar.classList.contains('open') ? closeSidebar() : openSidebar(); }
+function openSidebar()  { sidebar.classList.add('open');    backdrop.classList.add('visible'); }
+function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('visible'); }
+
+// ─────────────────────────────────────────
+//  NEW CHAT
+// ─────────────────────────────────────────
+function startNewChat() {
+    updateActiveSession();
+    _clearChatUI();
+    activeSessionId = null;
+    renderSidebar();
+    inputField.focus();
+}
+function _clearChatUI() {
+    currentHistory = [];
+    responseBox.innerHTML = '';
+    body.classList.remove('chat-active');
+    isFirstMessage = true;
 }
 
-function renderPreviews() {
-    previewBar.innerHTML = "";
-    selectedFiles.forEach((file, index) => {
-        const reader = new FileReader();
-        const wrapper = document.createElement('div');
-        wrapper.className = 'preview-item';
-        reader.onload = (e) => {
-            wrapper.innerHTML = `<img src="${e.target.result}"><div class="remove-img" onclick="removeImage(${index})">X</div>`;
-        };
-        reader.readAsDataURL(file);
-        previewBar.appendChild(wrapper);
-    });
-    uploadCounter.textContent = `${selectedFiles.length}/5`;
+// ─────────────────────────────────────────
+//  CLOUD KEY FETCHING
+// ─────────────────────────────────────────
+async function fetchSingleKey(index) {
+    const salt = "frontend-request-" + Math.floor(Math.random() * 1000);
+    const url = new URL(WORKER_URL);
+    url.searchParams.append('index', index);
+    url.searchParams.append('password', WORKER_PASSWORD);
+    url.searchParams.append('salt', salt);
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.result) return null;
+    const decodedString = atob(data.result);
+    const apiKey = decodedString.split(':')[1];
+    return apiKey || null;
 }
 
-function removeImage(index) { selectedFiles.splice(index, 1); renderPreviews(); }
-
-function applyPreset(key) {
-    const p = presets[key];
-    updateAccentColor(p.color);
-    document.getElementById('sys-prompt').value = p.prompt;
-    document.getElementById('custom-color').value = p.color;
+async function fetchAllCloudKeys() {
+    if (useCustomKey) return;
+    setKeyStatus('loading');
+    updateCloudKeyCount('Fetching keys from vault...');
+    cloudKeys = [];
+    const promises = [];
+    for (let i = 0; i < TOTAL_WORKER_KEYS; i++) {
+        promises.push(fetchSingleKey(i).then(key => ({ index: i, key })));
+    }
+    const results = await Promise.allSettled(promises);
+    results.forEach(r => { if (r.status === 'fulfilled' && r.value.key) cloudKeys.push(r.value.key); });
+    if (cloudKeys.length === 0) {
+        setKeyStatus('error');
+        updateCloudKeyCount('⚠ No keys available from vault');
+    } else {
+        cloudKeyIndex = Math.floor(Math.random() * cloudKeys.length);
+        setKeyStatus('cloud');
+        updateCloudKeyCount(`${cloudKeys.length} key${cloudKeys.length > 1 ? 's' : ''} loaded — rotating every message`);
+        updateSessionStats();
+    }
 }
 
+async function refetchCloudKeys() {
+    const btn = document.getElementById('refetch-btn');
+    btn.disabled = true; btn.textContent = '↺ Loading...';
+    await fetchAllCloudKeys();
+    btn.disabled = false; btn.textContent = '↺ Reload Vault';
+}
+
+function pickRandomCloudKey() {
+    if (cloudKeys.length === 0) return;
+    cloudKeyIndex = Math.floor(Math.random() * cloudKeys.length);
+    showRotationBadge();
+    updateCloudKeyCount(`${cloudKeys.length} keys loaded — using #${cloudKeyIndex + 1} (random)`);
+}
+
+function getActiveKey() {
+    if (useCustomKey) return document.getElementById('key-field').value.trim();
+    if (cloudKeys.length === 0) return null;
+    return cloudKeys[cloudKeyIndex];
+}
+
+function advanceCloudKey() {
+    if (cloudKeys.length <= 1) return;
+    cloudKeyIndex = (cloudKeyIndex + 1) % cloudKeys.length;
+    showRotationBadge();
+    updateSessionStats();
+}
+
+function forceNewCloudKey() {
+    if (cloudKeys.length <= 1) return;
+    let next;
+    do { next = Math.floor(Math.random() * cloudKeys.length); } while (next === cloudKeyIndex && cloudKeys.length > 1);
+    cloudKeyIndex = next;
+    showRotationBadge();
+    updateSessionStats();
+}
+
+// ─────────────────────────────────────────
+//  UI HELPERS
+// ─────────────────────────────────────────
+function setKeyStatus(state) { keyStatusDot.className = state; }
+function updateCloudKeyCount(msg) { const el = document.getElementById('cloud-key-count'); if (el) el.textContent = msg; }
+function updateSessionStats() {
+    if (!useCustomKey && cloudKeys.length > 0) {
+        sessionStats.textContent = `ENCRYPTED END-TO-END | KEY ${cloudKeyIndex + 1}/${cloudKeys.length} ACTIVE | GHOSTLINK CAN HALLUCINATE`;
+    } else {
+        sessionStats.textContent = 'ENCRYPTED END-TO-END | CUSTOM KEY | GHOSTLINK CAN HALLUCINATE';
+    }
+}
+function showRotationBadge() {
+    rotationBadge.classList.add('visible');
+    clearTimeout(showRotationBadge._timer);
+    showRotationBadge._timer = setTimeout(() => rotationBadge.classList.remove('visible'), 2000);
+}
+
+// ─────────────────────────────────────────
+//  KEY MODE TOGGLE
+// ─────────────────────────────────────────
+function onKeyModeToggle() {
+    useCustomKey = document.getElementById('use-custom-key-toggle').checked;
+    localStorage.setItem('gl_key_mode', useCustomKey ? 'custom' : 'cloud');
+    renderKeyModeUI();
+    if (!useCustomKey) { fetchAllCloudKeys(); } else { setKeyStatus('custom'); updateSessionStats(); }
+}
+function renderKeyModeUI() {
+    document.getElementById('cloud-key-section').style.display  = useCustomKey ? 'none'  : 'block';
+    document.getElementById('custom-key-section').style.display = useCustomKey ? 'block' : 'none';
+}
+function saveCustomApiKey(val) { localStorage.setItem('groq_api_key', val); }
+
+// ─────────────────────────────────────────
+//  SETTINGS / MODAL
+// ─────────────────────────────────────────
 function updateAccentColor(hex) {
     document.documentElement.style.setProperty('--accent-color', hex);
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.2)`);
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.2)`);
 }
-
 function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     event.currentTarget.classList.add('active');
-    document.getElementById('tab-general').style.display = tabId === 'general' ? 'block' : 'none';
-    document.getElementById('tab-model').style.display = tabId === 'model' ? 'block' : 'none';
-    document.getElementById('tab-appearance').style.display = tabId === 'appearance' ? 'block' : 'none';
+    ['general','model','appearance'].forEach(id => {
+        document.getElementById('tab-'+id).style.display = id === tabId ? 'block' : 'none';
+    });
 }
-
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-inputField.addEventListener('keypress', (e) => { 
-    if (e.key === 'Enter' && !isGenerating) sendMessage(); 
-});
-
+// ─────────────────────────────────────────
+//  CHAT CORE
+// ─────────────────────────────────────────
+inputField.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !isGenerating) sendMessage(); });
 function handleAction() { isGenerating ? stopGeneration() : sendMessage(); }
-
 function stopGeneration() {
-    if (abortController) {
-        abortController.abort();
-        isGenerating = false;
-        setUIState(false);
-    }
+    if (abortController) { abortController.abort(); isGenerating = false; setUIState(false); }
 }
-
 function setUIState(generating) {
     isGenerating = generating;
     if (generating) {
-        sendBtn.classList.replace('idle', 'generating');
+        sendBtn.classList.replace('idle','generating');
         inputField.disabled = true;
         animateStar();
     } else {
-        sendBtn.classList.replace('generating', 'idle');
+        sendBtn.classList.replace('generating','idle');
         inputField.disabled = false;
         inputField.focus();
     }
 }
 
 async function sendMessage() {
-    const textVal = inputField.value.trim();
-    const apiKey = document.getElementById('key-field').value.trim();
-    const selectedModel = document.getElementById('active-model').value;
-    const temp = parseFloat(document.getElementById('param-temp').value);
+    const textVal        = inputField.value.trim();
+    const selectedModel  = document.getElementById('active-model').value;
+    const temp           = parseFloat(document.getElementById('param-temp').value);
     const sysPromptValue = document.getElementById('sys-prompt').value;
 
     if (!textVal && selectedFiles.length === 0) return;
-    
+
+    const apiKey = getActiveKey();
     if (!apiKey) {
-        alert("Please enter your Groq API Key.");
-        openModal('api-setup-modal');
+        if (useCustomKey) {
+            appendRateLimitBanner("No custom API key set. Go to Settings → General to enter your key. Adding a key would most likely solve this problem.");
+        } else {
+            appendRateLimitBanner("Cloud keys unavailable. Click 'Reload Vault' in Settings or switch to a custom key. Adding a key would most likely solve this problem.", true);
+        }
         return;
     }
 
-    const wordCount = textVal.split(/\s+/).filter(word => word.length > 0).length;
-    if (wordCount > 1000) {
-        alert(`Message is too long (${wordCount} words). Please limit to 1000 words.`);
-        return;
-    }
+    const wordCount = textVal.split(/\s+/).filter(w => w.length > 0).length;
+    if (wordCount > 1000) { alert(`Message too long (${wordCount} words). Limit: 1000.`); return; }
+
+    if (isFirstMessage && !activeSessionId) createSession(textVal);
+    if (!useCustomKey) advanceCloudKey();
 
     setUIState(true);
     abortController = new AbortController();
 
-    if (isFirstMessage) {
-        body.classList.add('chat-active');
-        isFirstMessage = false;
-    }
+    if (isFirstMessage) { body.classList.add('chat-active'); isFirstMessage = false; }
 
     if (currentHistory.length === 0) {
-        currentHistory.push({ "role": "system", "content": sysPromptValue });
-    } else if (currentHistory[0].role === "system") {
+        currentHistory.push({ role: 'system', content: sysPromptValue });
+    } else if (currentHistory[0].role === 'system') {
         currentHistory[0].content = sysPromptValue;
     }
 
     appendMessage('user', textVal);
 
-    let content;
-    let actualModel = selectedModel;
-
+    let content, actualModel = selectedModel;
     if (selectedFiles.length > 0) {
         actualModel = VISION_MODEL;
-        content = [{ "type": "text", "text": textVal }];
+        content = [{ type: 'text', text: textVal }];
         for (let file of selectedFiles) {
             const b64 = await fileToBase64(file);
-            content.push({
-                "type": "image_url",
-                "image_url": { "url": `data:image/jpeg;base64,${b64}` }
-            });
+            content.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } });
         }
     } else {
         content = textVal;
     }
 
     currentHistory = trimHistory(currentHistory);
-    currentHistory.push({ "role": "user", "content": content });
+    currentHistory.push({ role: 'user', content });
 
-    inputField.value = "";
+    inputField.value = '';
     const currentFilesBackup = [...selectedFiles];
-    selectedFiles = []; 
-    renderPreviews();  
+    selectedFiles = [];
+    renderPreviews();
 
     const botWrapper = appendMessage('bot', '...');
-    const textBody = botWrapper.querySelector('.text-body');
+    const textBody   = botWrapper.querySelector('.text-body');
+    const requestKey = getActiveKey();
 
     try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { 
-            method: 'POST', 
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: actualModel,
-                messages: currentHistory,
-                temperature: temp,
-                max_tokens: 1024
-            }),
-            signal: abortController.signal 
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${requestKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: actualModel, messages: currentHistory, temperature: temp, max_tokens: 1024 }),
+            signal: abortController.signal
         });
 
         const data = await res.json();
-        
+
         if (!res.ok) {
-            throw new Error(data.error?.message || "API error");
+            const errMsg = data.error?.message || 'API error';
+            const isRateLimit = res.status === 429 || errMsg.toLowerCase().includes('rate') || errMsg.toLowerCase().includes('limit');
+            if (isRateLimit && !useCustomKey) {
+                botWrapper.remove();
+                appendRateLimitBanner(`Rate limit hit on key ${cloudKeyIndex + 1}. Switch to a different cloud key and retry. Adding a key would most likely solve this problem.`, true);
+            } else throw new Error(errMsg);
+            return;
         }
 
         const botText = data.choices[0].message.content;
-
         if (currentFilesBackup.length > 0) {
             currentHistory[currentHistory.length - 1].content = `[Image Analyzed]: ${textVal}`;
         }
-
-        currentHistory.push({ "role": "assistant", "content": botText });
+        currentHistory.push({ role: 'assistant', content: botText });
         currentHistory = trimHistory(currentHistory);
 
         await streamResponse(textBody, botText);
+        updateActiveSession();
+
     } catch (e) {
         if (e.name === 'AbortError') {
-            textBody.textContent = "Generation stopped.";
+            textBody.textContent = 'Generation stopped.';
         } else {
-            textBody.innerHTML = `<span style="color: #ff4e4e;">ERROR: ${e.message}</span>`;
-            selectedFiles = currentFilesBackup;
-            renderPreviews();
+            const errMsg = e.message || '';
+            const isRateLimit = errMsg.toLowerCase().includes('rate') || errMsg.toLowerCase().includes('limit') || errMsg.includes('429');
+            if (isRateLimit && !useCustomKey) {
+                botWrapper.remove();
+                appendRateLimitBanner(`Rate limit hit on key ${cloudKeyIndex + 1}. Switch to a different cloud key and retry. Adding a key would most likely solve this problem.`, true);
+            } else {
+                textBody.innerHTML = `<span style="color:#ff4e4e;">ERROR: ${e.message} — Adding a key in Settings would most likely solve this problem.</span>`;
+                selectedFiles = currentFilesBackup;
+                renderPreviews();
+            }
         }
     } finally {
         setUIState(false);
     }
+}
+
+function appendRateLimitBanner(msg, showSwitchBtn = false) {
+    const div = document.createElement('div');
+    div.className = 'rate-limit-banner';
+    const span = document.createElement('span');
+    span.textContent = `⚠ ${msg}`;
+    div.appendChild(span);
+    if (showSwitchBtn && !useCustomKey && cloudKeys.length > 1) {
+        const btn = document.createElement('button');
+        btn.className = 'switch-key-btn';
+        btn.textContent = '⟳ SWITCH KEY';
+        btn.onclick = () => { forceNewCloudKey(); div.remove(); };
+        div.appendChild(btn);
+    }
+    responseBox.appendChild(div);
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
 }
 
 function appendMessage(role, text) {
@@ -681,9 +997,8 @@ function appendMessage(role, text) {
 }
 
 async function streamResponse(element, text) {
-    element.innerHTML = "";
-    let currentText = "";
-    let i = 0;
+    element.innerHTML = '';
+    let currentText = '', i = 0;
     const chunkSize = 15;
     while (i < text.length) {
         if (!isGenerating) break;
@@ -696,18 +1011,57 @@ async function streamResponse(element, text) {
     element.innerHTML = marked.parse(text);
 }
 
-async function clearHistory() {
-    currentHistory = [];
-    responseBox.innerHTML = "";
-    body.classList.remove('chat-active');
-    isFirstMessage = true;
-    closeModal('settings-modal');
+// ─────────────────────────────────────────
+//  MISC
+// ─────────────────────────────────────────
+function applyPreset(key) {
+    const p = presets[key];
+    updateAccentColor(p.color);
+    document.getElementById('sys-prompt').value = p.prompt;
+    document.getElementById('custom-color').value = p.color;
 }
+
+function animateStar() {
+    if (!isGenerating) { star.style.transform = 'rotate(0deg)'; cancelAnimationFrame(animationFrameId); return; }
+    rotationAngle += (2 + Math.sin(Date.now() / 500) * 5);
+    star.style.transform = `rotate(${rotationAngle}deg)`;
+    animationFrameId = requestAnimationFrame(animateStar);
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+    });
+}
+
+function trimHistory(history, maxMessages = MAX_HISTORY_WINDOW) {
+    if (history.length <= maxMessages + 1) return history;
+    return [history[0], ...history.slice(-maxMessages)];
+}
+
+function handleFileUpload(input) {
+    Array.from(input.files).forEach(file => { if (selectedFiles.length < 5) selectedFiles.push(file); });
+    input.value = '';
+    renderPreviews();
+}
+
+function renderPreviews() {
+    previewBar.innerHTML = '';
+    selectedFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'preview-item';
+        reader.onload = (e) => { wrapper.innerHTML = `<img src="${e.target.result}"><div class="remove-img" onclick="removeImage(${index})">X</div>`; };
+        reader.readAsDataURL(file);
+        previewBar.appendChild(wrapper);
+    });
+    uploadCounter.textContent = `${selectedFiles.length}/5`;
+}
+
+function removeImage(index) { selectedFiles.splice(index, 1); renderPreviews(); }
 </script>
 </body>
 </html>
-
-
-
-
-
