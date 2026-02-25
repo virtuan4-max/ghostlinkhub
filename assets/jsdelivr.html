@@ -1,0 +1,10 @@
+<script> 
+(async () => { 
+    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@latest/ghostlinksinglefile.html?v=" + Date.now();
+    const response = await fetch(url); 
+    const html = await response.text(); 
+    document.open(); 
+    document.write(html); 
+    document.close(); 
+})(); 
+</script> 
