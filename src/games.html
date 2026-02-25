@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GhostLink classes</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --accent: #6ecbff;
+            --accent-glow: rgba(110, 203, 255, 0.3);
+            --text-dim: #94a3b8;
+            --border: rgba(110, 203, 255, 0.08);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --font: 'Courier New', monospace;
+            --blur: blur(12px);
+            --transition-fast: 0.2s ease;
+            --transition-slow: 0.4s ease-in;
+            --fav-color: #ff4b2b;
+        }
+
+        body { 
+            font-family: var(--font); 
+            background: var(--bg); 
+            color: white; 
+            margin: 0; 
+            padding: 20px;
+            overflow-x: hidden;
+            animation: fadeIn var(--transition-slow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Matrix Background */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Top Heading Styles */
+        .page-header {
+            text-align: center;
+            margin-top: 60px;
+            margin-bottom: 40px;
+            z-index: 1;
+        }
+
+        .header-diamond {
+            font-size: 4rem;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .header-title {
+            font-size: 2.5rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            margin: 0;
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .search-container {
+            width: 100%;
+            max-width: 1000px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            color: var(--accent);
+            font-size: 1.2rem;
+            pointer-events: none;
+        }
+
+        #searchInput {
+            width: 100%;
+            background: var(--input-bg);
+            border: 2px solid var(--border);
+            padding: 14px 20px 14px 45px;
+            color: white;
+            border-radius: 12px;
+            font-family: var(--font);
+            outline: none;
+            font-size: 1rem;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        #searchInput:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .fav-filter-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font);
+            transition: all var(--transition-fast);
+        }
+
+        .fav-filter-btn.active {
+            border-color: var(--fav-color);
+            color: var(--fav-color);
+            background: rgba(255, 75, 43, 0.05);
+        }
+
+        /* Featured Carousel - Smooth Loop */
+        .featured-wrapper {
+            width: 100%;
+            max-width: 1250px;
+            position: relative;
+            margin-bottom: 40px;
+            padding: 0 60px;
+            box-sizing: border-box;
+            z-index: 1;
+        }
+
+        .featured-header {
+            text-align: left;
+            margin-bottom: 15px;
+            color: var(--accent);
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .carousel-viewport {
+            overflow: hidden;
+            border-radius: 20px;
+            background: rgba(110, 203, 255, 0.02);
+            border: 1px solid var(--border);
+            padding: 20px 0;
+        }
+
+        #featuredContainer {
+            display: flex;
+            /* Transition is handled via JS to allow instant jumps for looping */
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .featured-item {
+            /* Vertical locked ratio logic */
+            flex: 0 0 calc(20% - 30px); 
+            margin: 0 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform var(--transition-fast);
+        }
+
+        .featured-item:hover {
+            transform: scale(1.03);
+        }
+
+        .featured-item img {
+            width: 100%;
+            aspect-ratio: 2/3; /* Vertical locked ratio */
+            border-radius: 15px;
+            object-fit: cover;
+            border: 2px solid transparent;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .featured-item:hover img {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .nav-btn {
+            position: absolute;
+            top: 55%;
+            transform: translateY(-50%);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background var(--transition-fast);
+        }
+
+        .nav-btn:hover {
+            background: var(--input-bg);
+            border-color: var(--accent);
+        }
+
+        .nav-prev { left: 5px; }
+        .nav-next { right: 5px; }
+
+        /* Main Grid */
+        #container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 25px; 
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn var(--transition-slow);
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .zone-item { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 10px; 
+            text-align: center; 
+            cursor: pointer; 
+            position: relative;
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            transition: transform var(--transition-fast), border var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .zone-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .zone-item img { 
+            width: 100%; 
+            border-radius: 8px; 
+            aspect-ratio: 1; 
+            object-fit: cover; 
+            border: 1px solid var(--border);
+        }
+
+        .heart-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            transition: color var(--transition-fast);
+            z-index: 5;
+        }
+
+        .heart-btn.active {
+            color: var(--fav-color);
+        }
+
+        .zone-item p {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            transition: color var(--transition-fast);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .zone-item:hover p {
+            color: var(--accent);
+            text-shadow: 0 0 8px var(--accent-glow);
+        }
+        
+        /* Viewer Overlay */
+        #zoneViewer {
+            position: fixed; 
+            inset: 0; 
+            background: var(--bg); 
+            display: none; 
+            flex-direction: column; 
+            z-index: 1000;
+            animation: fadeIn var(--transition-slow);
+        }
+
+        .zone-header { 
+            padding: 15px; 
+            background: var(--card-bg); 
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        #zoneName {
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent-glow);
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+
+        .controls { 
+            display: flex; 
+            gap: 10px; 
+        }
+
+        .control-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .control-btn:hover {
+            background: var(--accent);
+            color: black;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        iframe { 
+            flex-grow: 1; 
+            border: none; 
+            width: 100%; 
+            height: 100%; 
+            background: white; 
+        }
+
+        #zoneId { display: none; }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--input-bg); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        @media (max-width: 800px) {
+            .featured-item { flex: 0 0 calc(50% - 20px); }
+            .featured-wrapper { padding: 0 40px; }
+            .search-container { flex-direction: column; align-items: stretch; }
+            .header-title { font-size: 1.5rem; letter-spacing: 4px; }
+        }
+        .top-right-nav {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        .external-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: var(--font);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .external-btn:hover {
+            background: var(--accent);
+            color: black;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrixCanvas"></canvas>
+    <div class="top-right-nav">
+        <a href="javascript:void(0)" class="external-btn" onclick="openNewTabLoader()">
+            <span>⧉</span> Open in New Tab
+        </a>
+    </div>
+
+    <div class="page-header">
+        <span class="header-diamond">◈</span>
+        <h1 class="header-title">GhostLink games</h1>
+    </div>
+
+    <div class="featured-wrapper" id="featuredWrapper" style="display:none;">
+        <div class="featured-header">Featured Today</div>
+        <button class="nav-btn nav-prev" onclick="manualNav(-1)">❮</button>
+        <div class="carousel-viewport">
+            <div id="featuredContainer"></div>
+        </div>
+        <button class="nav-btn nav-next" onclick="manualNav(1)">❯</button>
+    </div>
+
+    <div class="search-container">
+        <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Search for a game..." oninput="handleSearch()">
+        </div>
+        <button id="favFilter" class="fav-filter-btn" onclick="toggleFavFilter()">
+            <span>❤</span> Favorites
+        </button>
+    </div>
+
+    <div id="container">Loading zones...</div>
+
+    <div id="zoneViewer">
+        <div class="zone-header">
+            <div>
+                <strong id="zoneName">Game</strong>
+                <span id="zoneId"></span>
+            </div>
+            <div class="controls">
+                <button class="control-btn" onclick="fullscreenZone()">Fullscreen</button>
+                <button class="control-btn" onclick="downloadZone()">Download</button>
+                <button class="control-btn" onclick="closeZone()">Close</button>
+            </div>
+        </div>
+        <iframe id="zoneFrame"></iframe>
+    </div>
+
+    <script>
+        // FUNCTION TO OPEN LOADER IN NEW TAB
+        function openNewTabLoader() {
+            const newWindow = window.open('about:blank', '_blank');
+            const loaderScript = `
+                <script>
+                (async () => { 
+                    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/ghostlinkgames.html?v=" + Date.now();
+                    const response = await fetch(url); 
+                    const html = await response.text(); 
+                    document.open(); 
+                    document.write(html); 
+                    document.close(); 
+                })(); 
+                <\/script>
+            `;
+            newWindow.document.open();
+            newWindow.document.write(loaderScript);
+            newWindow.document.close();
+        }
+
+        // --- GHOSTLINK THEME SYNC ---
+        function syncGhostLinkTheme() {
+            // 1. Check if we are inside the GhostLink Single File
+            if (window.self !== window.top) {
+                
+                // 2. Setup the listener for when the parent sends colors
+                window.addEventListener('message', (event) => {
+                    if (event.data.type === 'GHOSTLINK_THEME_DATA') {
+                        const { accent, bg, font } = event.data.theme;
+                        const root = document.documentElement;
+
+                        if (accent) {
+                            // Update the specific variables used in your games.html
+                            root.style.setProperty('--accent', accent);
+                            root.style.setProperty('--accent-glow', accent + '4D'); // 30% transparency
+                        }
+                        if (bg) {
+                            root.style.setProperty('--bg', bg);
+                        }
+                        if (font) {
+                            // Update both the font variable and the body font family
+                            root.style.setProperty('--font', font);
+                            document.body.style.fontFamily = font;
+                        }
+                    }
+                });
+
+                // 3. IMMEDIATELY ask the parent for the theme
+                window.parent.postMessage({ type: 'GHOSTLINK_QUERY_THEME' }, '*');
+            }
+        }
+
+        // Run this as soon as the DOM is ready for instant application
+        document.addEventListener('DOMContentLoaded', syncGhostLinkTheme);
+
+        // MATRIX RAIN EFFECT
+        var canvas = document.getElementById('matrixCanvas');
+        var ctx = canvas.getContext('2d');
+
+        // Setting the width and height of the canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Setting up the letters
+        var letters = 'ABCDEFGHIJKLMNOPQRSTUVXYZABCDEFGHIJKLMNOPQRSTUVXYZABCDEFGHIJKLMNOPQRSTUVXYZABCDEFGHIJKLMNOPQRSTUVXYZABCDEFGHIJKLMNOPQRSTUVXYZABCDEFGHIJKLMNOPQRSTUVXYZ';
+        letters = letters.split('');
+
+        // Setting up the columns
+        var fontSize = 10;
+        var columns = canvas.width / fontSize;
+
+        // Setting up the drops
+        var drops = [];
+        for (var i = 0; i < columns; i++) {
+            // Change: Start at random negative positions so they don't fall all at once
+            drops[i] = Math.floor(Math.random() * -100);
+        }
+
+        // Setting up the draw function
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, .1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (var i = 0; i < drops.length; i++) {
+                // Change: Only draw if the drop is on screen and based on a random chance (sparse effect)
+                if (drops[i] >= 0 && Math.random() > 0.95) {
+                    var text = letters[Math.floor(Math.random() * letters.length)];
+                    ctx.fillStyle = '#6ecbff'; // Match theme accent
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                }
+                
+                drops[i]++;
+                
+                // If drop is at the end of the screen, reset to top randomly
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.95) {
+                    drops[i] = 0;
+                }
+            }
+        }
+
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            columns = canvas.width / fontSize;
+            drops = [];
+            for (var i = 0; i < columns; i++) {
+                drops[i] = Math.floor(Math.random() * -100);
+            }
+        });
+
+        setInterval(drawMatrix, 33);
+
+        // CORE STATE
+        const container = document.getElementById('container');
+        const zoneViewer = document.getElementById('zoneViewer');
+        let zoneFrame = document.getElementById('zoneFrame');
+        const featContainer = document.getElementById('featuredContainer');
+        const featWrapper = document.getElementById('featuredWrapper');
+
+        const zonesurls = [
+            "https://cdn.jsdelivr.net/%67%68/%67%6e%2d%6d%61%74%68/%61%73%73%65%74%73@%6d%61%69%6e/%7a%6f%6e%65%73%2e%6a%73%6f%6e",
+            "https://cdn.jsdelivr.net/gh/gn-math/assets@latest/zones.json",
+            "https://cdn.jsdelivr.net/gh/gn-math/assets@master/zones.json",
+            "https://cdn.jsdelivr.net/gh/gn-math/assets/zones.json"
+        ];
+        let zonesURL = zonesurls[Math.floor(Math.random() * zonesurls.length)];
+        const coverURL = "https://cdn.jsdelivr.net/gh/gn-math/covers@main";
+        const htmlURL = "https://cdn.jsdelivr.net/gh/gn-math/html@main";
+        
+        let zones = [];
+        let favorites = JSON.parse(localStorage.getItem('gn-favs') || '[]');
+        let showFavsOnly = false;
+        
+        // CAROUSEL STATE
+        let featuredGames = [];
+        let carouselIndex = 0;
+        let carouselTimer;
+        let pauseTimer;
+        let isTransitioning = false;
+
+        async function listZones() {
+            try {
+                let sharesponse;
+                try {
+                    sharesponse = await fetch("https://api.github.com/repos/gn-math/assets/commits?t="+Date.now());
+                } catch (error) {}
+                if (sharesponse && sharesponse.status === 200) {
+                    try {
+                        let shajson = await sharesponse.json();
+                        let sha = shajson[0]['sha'];
+                        if (sha) zonesURL = `https://cdn.jsdelivr.net/gh/gn-math/assets@${sha}/zones.json`;
+                    } catch (error) {}
+                }
+                const response = await fetch(zonesURL + "?t=" + Date.now());
+                zones = await response.json();
+                
+                setupFeatured();
+                renderGrid(zones);
+            } catch (error) {
+                container.innerHTML = "Error: " + error;
+            }
+        }
+
+        function setupFeatured() {
+            if (zones.length < 5) return;
+            
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+            const block = now.getHours() < 12 ? 'AM' : 'PM';
+            const seed = dateStr + block;
+
+            let seededRandom = function(s) {
+                let hash = 0;
+                for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+                return function() {
+                    hash = Math.sin(hash) * 10000;
+                    return hash - Math.floor(hash);
+                };
+            };
+            
+            const rand = seededRandom(seed);
+            let pool = [...zones].filter(z => !z.name.includes("SUGGEST"));
+            featuredGames = [];
+            for (let i = 0; i < 10; i++) {
+                let idx = Math.floor(rand() * pool.length);
+                featuredGames.push(pool.splice(idx, 1)[0]);
+            }
+
+            renderFeatured();
+            featWrapper.style.display = 'block';
+        }
+
+        function renderFeatured() {
+            featContainer.innerHTML = "";
+            const itemsVisible = window.innerWidth > 800 ? 5 : 2;
+
+            // Clone items for infinite loop (end of list to start, start of list to end)
+            const clonesBefore = featuredGames.slice(-itemsVisible);
+            const clonesAfter = featuredGames.slice(0, itemsVisible);
+            const displayPool = [...clonesBefore, ...featuredGames, ...clonesAfter];
+
+            displayPool.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'featured-item';
+                div.onclick = () => openZone(file);
+                
+                const img = document.createElement('img');
+                img.src = file.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+                
+                const p = document.createElement('p');
+                p.textContent = file.name;
+                p.style.fontSize = "0.75rem";
+                p.style.marginTop = "8px";
+                p.style.fontWeight = "bold";
+
+                div.append(img, p);
+                featContainer.appendChild(div);
+            });
+
+            // Set initial position to the actual first item (skipping clones)
+            carouselIndex = itemsVisible;
+            updateCarouselPosition(false);
+            startCarousel();
+        }
+
+        function updateCarouselPosition(transition = true) {
+            const itemsVisible = window.innerWidth > 800 ? 5 : 2;
+            const offset = carouselIndex * (100 / itemsVisible);
+            featContainer.style.transition = transition ? "transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)" : "none";
+            featContainer.style.transform = `translateX(-${offset}%)`;
+        }
+
+        function startCarousel() {
+            clearInterval(carouselTimer);
+            carouselTimer = setInterval(() => {
+                moveCarousel(1);
+            }, 3000);
+        }
+
+        function moveCarousel(direction) {
+            if (isTransitioning) return;
+            const itemsVisible = window.innerWidth > 800 ? 5 : 2;
+            const totalItems = featuredGames.length;
+
+            isTransitioning = true;
+            carouselIndex += direction;
+            updateCarouselPosition(true);
+
+            // Handle the infinite jump after transition
+            setTimeout(() => {
+                if (carouselIndex >= totalItems + itemsVisible) {
+                    carouselIndex = itemsVisible;
+                    updateCarouselPosition(false);
+                } else if (carouselIndex <= 0) {
+                    carouselIndex = totalItems;
+                    updateCarouselPosition(false);
+                }
+                isTransitioning = false;
+            }, 600);
+        }
+
+        function manualNav(dir) {
+            moveCarousel(dir);
+            clearInterval(carouselTimer);
+            clearTimeout(pauseTimer);
+            pauseTimer = setTimeout(startCarousel, 3000);
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = zones.filter(z => {
+                const matchesSearch = z.name.toLowerCase().includes(query);
+                const matchesFav = showFavsOnly ? favorites.includes(z.id) : true;
+                return matchesSearch && matchesFav;
+            });
+            renderGrid(filtered);
+        }
+
+        function toggleFavFilter() {
+            showFavsOnly = !showFavsOnly;
+            document.getElementById('favFilter').classList.toggle('active', showFavsOnly);
+            handleSearch();
+        }
+
+        function toggleHeart(e, id) {
+            e.stopPropagation();
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(f => f !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('gn-favs', JSON.stringify(favorites));
+            renderGrid(zones);
+            handleSearch();
+        }
+
+        function renderGrid(data) {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const displayData = data.filter(z => {
+                const matchesSearch = z.name.toLowerCase().includes(query);
+                const matchesFav = showFavsOnly ? favorites.includes(z.id) : true;
+                return matchesSearch && matchesFav;
+            });
+
+            container.innerHTML = "";
+            displayData.forEach(file => {
+                const div = document.createElement('div');
+                div.className = 'zone-item';
+                div.onclick = () => openZone(file);
+                
+                const heart = document.createElement('button');
+                heart.className = `heart-btn ${favorites.includes(file.id) ? 'active' : ''}`;
+                heart.innerHTML = '❤';
+                heart.onclick = (e) => toggleHeart(e, file.id);
+
+                const img = document.createElement('img');
+                img.src = file.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+                
+                const p = document.createElement('p');
+                p.textContent = file.name;
+                
+                div.append(heart, img, p);
+                container.appendChild(div);
+            });
+        }
+
+        function openZone(file) {
+            if (file.name === "[!] SUGGEST GAMES .gg/D4c9VFYWyU") {
+                window.open("https://discord.com/invite/dKs2sUNUXd", "_blank");
+                return;
+            }
+
+            if (file.url.startsWith("http")) {
+                window.open(file.url, "_blank");
+            } else {
+                const url = file.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+                fetch(url+"?t="+Date.now()).then(response => response.text()).then(html => {
+                    if (!zoneFrame || zoneFrame.contentDocument === null) {
+                        zoneFrame = document.createElement("iframe");
+                        zoneFrame.id = "zoneFrame";
+                        zoneViewer.appendChild(zoneFrame);
+                    }
+                    zoneFrame.contentDocument.open();
+                    zoneFrame.contentDocument.write(html);
+                    zoneFrame.contentDocument.close();
+                    document.getElementById('zoneName').textContent = file.name;
+                    document.getElementById('zoneId').textContent = file.id;
+                    
+                    zoneViewer.style.display = "flex";
+                    zoneViewer.hidden = false; 
+                }).catch(error => alert("Failed to load zone: " + error));
+            }
+        }
+
+        function closeZone() {
+            zoneViewer.hidden = true;
+            zoneViewer.style.display = "none";
+            if (zoneFrame && zoneFrame.parentNode) {
+                zoneViewer.removeChild(zoneFrame);
+            }
+            
+            const url = new URL(window.location);
+            url.searchParams.delete('id');
+            history.pushState(null, '', url.toString());
+        }
+
+        function downloadZone() {
+            let zone = zones.find(zone => zone.id + '' === document.getElementById('zoneId').textContent);
+            fetch(zone.url.replace("{HTML_URL}", htmlURL)+"?t="+Date.now()).then(res => res.text()).then(text => {
+                const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = zone.name + ".html";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function fullscreenZone() {
+            if (zoneFrame.requestFullscreen) {
+                zoneFrame.requestFullscreen();
+            } else if (zoneFrame.webkitRequestFullscreen) {
+                zoneFrame.webkitRequestFullscreen();
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            renderFeatured(); // Recalculate clones on resize
+        });
+
+        listZones();
+    </script>
+</body>
+</html>
