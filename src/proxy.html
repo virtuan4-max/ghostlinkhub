@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy laziness lol</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --accent: #6ecbff;
+            --accent-glow: rgba(110, 203, 255, 0.3);
+            --text-dim: #94a3b8;
+            --border: rgba(110, 203, 255, 0.08);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --font: 'Courier New', monospace;
+            --blur: blur(12px);
+            --transition-fast: 0.2s ease;
+            --transition-slow: 0.4s ease-in;
+            --fav-color: #ff4b2b;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: var(--font);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .hero {
+            max-width: 500px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0 0 1rem 0;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+            letter-spacing: -1px;
+        }
+
+        p {
+            color: var(--text-dim);
+            font-size: 1rem;
+            line-height: 1.5;
+            margin-bottom: 2rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .contact-link {
+            color: white;
+            text-decoration: none;
+            border-bottom: 1px solid var(--accent);
+            transition: var(--transition-fast);
+            padding-bottom: 2px;
+        }
+
+        .contact-link:hover {
+            color: var(--accent);
+            border-bottom-color: transparent;
+        }
+
+        .tech-stack {
+            margin-top: 3rem;
+            font-size: 0.8rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <div class="badge">Development Phase</div>
+        <h1>Coming Soon.</h1>
+        <p>
+            The proxy hasn't been started yet, but I'm planning to implement 
+            <b>Scramjet</b> or <b>Ultraviolet</b> soon. 🥹🙏
+        </p>
+        
+        <p style="font-size: 0.9rem;">
+            Think you can help? <a href="https://discord.gg/dKs2sUNUXd" class="contact-link">DM me on Discord</a>.
+        </p>
+
+        <div class="tech-stack">
+            GHOSTLINK
+        </div>
+    </div>
+
+    <script>
+        function syncGhostLinkTheme() {
+            if (window.self !== window.top) {
+                window.addEventListener('message', (event) => {
+                    if (event.data.type === 'GHOSTLINK_THEME_DATA') {
+                        const { accent, bg, font } = event.data.theme;
+                        const root = document.documentElement;
+
+                        if (accent) {
+                            root.style.setProperty('--accent', accent);
+                            root.style.setProperty('--accent-glow', accent + '4D');
+                        }
+                        if (bg) {
+                            root.style.setProperty('--bg', bg);
+                        }
+                        if (font) {
+                            root.style.setProperty('--font', font);
+                            document.body.style.fontFamily = font;
+                        }
+                    }
+                });
+                window.parent.postMessage({ type: 'GHOSTLINK_QUERY_THEME' }, '*');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', syncGhostLinkTheme);
+    </script>
+</body>
+</html>
