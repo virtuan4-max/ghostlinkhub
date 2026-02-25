@@ -1,0 +1,2439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostLink</title>
+    <!-- Supabase for online users + total visits -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+    <script>        // --- CORE LOADING UTILITY ---
+        function loadIntoFrame(targetUrl) {
+            const frame = document.getElementById('app-frame');
+            frame.style.display = 'block';
+
+            const styles = getComputedStyle(document.documentElement);
+            const accent = styles.getPropertyValue('--accent').trim();
+            const bg = styles.getPropertyValue('--bg').trim();
+            const font = styles.getPropertyValue('--font').trim();
+
+            // Helper to inject a "Pre-load" script into HTML strings
+            const injectThemeScript = (html) => {
+                // Get live values
+                const styles = getComputedStyle(document.documentElement);
+                const accent = styles.getPropertyValue('--accent').trim();
+                const bg = styles.getPropertyValue('--bg').trim();
+                const font = styles.getPropertyValue('--font').trim();
+
+                const themeScript = `
+                    <script>
+                        (function() {
+                            // Use backticks to handle fonts with single quotes safely
+                            document.documentElement.style.setProperty('--accent-color', \`${accent}\`);
+                            document.documentElement.style.setProperty('--bg-dark', \`${bg}\`);
+                            document.documentElement.style.setProperty('--font-family', \`${font}\`);
+                        })();
+                    <\/script>`;
+                return html.includes('<head>') ? html.replace('<head>', '<head>' + themeScript) : themeScript + html;
+            };
+
+            // Logic for data URIs or raw HTML
+            if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
+                frame.removeAttribute('src');
+                let rawHtml = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
+                frame.srcdoc = injectThemeScript(rawHtml);
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                return;
+            }
+
+            const isGitHub = targetUrl.includes('github.com');
+            const isJsDelivr = targetUrl.includes('cdn.jsdelivr.net');
+
+            if (isGitHub || isJsDelivr) {
+                let processedUrl = targetUrl;
+                if (isGitHub && !targetUrl.includes('raw.githubusercontent.com')) {
+                    processedUrl = targetUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                }
+
+                fetch(processedUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Fetch failed`);
+                        return response.text();
+                    })
+                    .then(htmlContent => {
+                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        // INJECT THEME INTO FETCHED CONTENT BEFORE SETTING SRCDOC
+                        frame.srcdoc = injectThemeScript(htmlContent);
+                    })
+                    .catch(err => {
+                        console.warn('Raw fetch failed, falling back to direct src load.');
+                        frame.removeAttribute('srcdoc');
+                        // Fallback to URL params
+                        frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
+                    });
+            } else {
+                frame.removeAttribute('srcdoc');
+                if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
+                // Append theme to URL for external loads
+                frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg: #000000;
+            --sidebar-bg: var(--bg);
+            --accent: #6ecbff;
+            --accent-glow: rgba(110, 203, 255, 0.3);
+            --text-primary: #ffffff;
+            --text-dim: #94a3b8;
+            --border: rgba(110, 203, 255, 0.08);
+            --font: 'Courier New', monospace;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --bg-image: none;
+            --bg-blur: 0px;
+            --bg-brightness: 100%;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            font-family: var(--font);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.3s ease;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            filter: blur(var(--bg-blur)) brightness(var(--bg-brightness));
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            position: fixed; 
+            top: 0;         
+            left: 0;        
+            height: 100vh;  
+            width: 72px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 0;
+            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar:hover { width: 220px; }
+
+        .logo-box { 
+            margin-bottom: 40px; 
+            color: var(--accent); 
+            font-size: 32px; 
+            text-shadow: 0 0 10px var(--accent);
+            cursor: default;
+            flex-shrink: 0;
+        }
+
+        .nav-group { 
+            width: 100%; 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            overflow-x: hidden; 
+            display: flex; 
+            flex-direction: column;
+            scrollbar-width: none;
+        }
+        
+        .nav-group::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-item {
+            width: 100%;
+            min-height: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+        }
+
+        .nav-item.dragging {
+            opacity: 0.5;
+            background: var(--accent-glow);
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            width: 48px;
+            height: 48px;
+            background: transparent;
+            border-radius: 12px;
+            transition: all 0.2s;
+            z-index: -1;
+        }
+
+        .nav-item.active::before { background: var(--accent); }
+        .sidebar:hover .nav-item.active::before { width: calc(100% - 24px); }
+
+        .nav-item svg {
+            min-width: 72px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            pointer-events: none;
+        }
+
+        .nav-item span { 
+            position: absolute;
+            left: 72px;
+            opacity: 0; 
+            transition: opacity 0.1s; 
+            pointer-events: none;
+        }
+
+        .sidebar:hover .nav-item span { opacity: 1; }
+        .nav-item:hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
+        .nav-item.active { color: #000; }
+        .nav-item.active svg { stroke: #000; }
+
+        .sidebar-bottom { 
+            width: 100%; 
+            border-top: 1px solid var(--border); 
+            padding-top: 10px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+
+        .main-view { 
+            flex-grow: 1; 
+            margin-left: 72px; 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 1; 
+        }
+
+        .view-section {
+            height: 100%;
+            width: 100%;
+            overflow-y: auto;
+            padding: 40px 10%;
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #home-content {
+            position: relative; 
+            display: flex; 
+            flex-direction: row; 
+            align-items: center; 
+            justify-content: space-between;
+            gap: 50px;
+        }
+
+
+        .hero { flex: 1; }
+        .hero h1 { font-size: clamp(2rem, 5vw, 4.5rem); line-height: 1.1; margin-bottom: 10px; }
+        .hero span#typewriter { color: var(--accent); border-right: 3px solid var(--accent); padding-right: 5px; text-shadow: 0 0 10px var(--accent-glow); }
+
+        .clock-container { text-align: right; flex-shrink: 0; }
+        #home-clock { font-size: 6rem; font-weight: bold; color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); margin-bottom: -10px; }
+        #home-date { font-size: 1rem; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+
+        /* --- STATUS & SOCIAL HUDs --- */
+        .status-hud, .social-hud {
+            position: absolute; bottom: 25px;
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid var(--border);
+            padding: 15px; border-radius: 12px; font-size: 11px; color: var(--text-dim);
+            line-height: 2; z-index: 5;
+            backdrop-filter: blur(12px) saturate(180%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .status-hud { left: 13%; pointer-events: none; min-width: 160px; }
+        .social-hud { right: 9%; min-width: 180px; padding: 20px; }
+
+        .status-hud text, .social-hud text { color: var(--accent); }
+
+        .bat-container { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .bat-shell { width: 35px; height: 18px; border: 2px solid var(--text-dim); border-radius: 4px; position: relative; padding: 2px; }
+        .bat-shell::after { content: ''; position: absolute; right: -5px; top: 4px; width: 3px; height: 6px; background: var(--text-dim); border-radius: 0 2px 2px 0; }
+        .bat-level { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+        .social-container { display: flex; align-items: center; justify-content: flex-end; gap: 15px; }
+        .social-icon { width: 30px; height: 30px; color: var(--text-dim); transition: 0.2s; cursor: pointer; text-decoration: none; }
+        .social-icon:hover { color: var(--accent); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        .social-icon svg { width: 100%; height: 100%; fill: currentColor; }
+        
+        /* UPDATED AVATAR STYLING */
+        .dev-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background-size: cover;
+            background-position: center;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .dev-avatar:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+
+        .settings-header {
+            margin-bottom: 20px !important; 
+        }
+
+        .settings-header h2 {
+            margin-bottom: 12px !important;
+            margin-top: 0;
+        }
+
+        .settings-header p {
+            margin: 0; 
+        }
+
+        /* --- APPS UI --- */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .app-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .app-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+
+        .app-card-header { display: flex; align-items: center; gap: 15px; }
+        .app-card-icon { width: 40px; height: 40px; color: var(--accent); }
+        .app-card-icon svg { width: 100%; height: 100%; }
+        .app-card-title { font-size: 1.2rem; font-weight: bold; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .app-card-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.4; min-height: 3em; }
+
+        .app-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+        .btn-small {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+        .btn-small.run { background: var(--accent); color: black; font-weight: bold; border: none; }
+        .btn-small:hover:not(.run):not(.installed) { background: rgba(255,255,255,0.1); }
+        .btn-small.installed { opacity: 0.5; cursor: default; border-style: dashed; }
+
+        /* --- SEARCH --- */
+        .search-bar {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-family: var(--font);
+            margin-bottom: 20px;
+            outline: none;
+            font-size: 1rem;
+            backdrop-filter: blur(5px);
+        }
+        .search-bar:focus { border-color: var(--accent); background: rgba(255,255,255,0.08); }
+
+        /* --- MODALS / INPUTS --- */
+        .settings-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+    
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+        textarea, input[type="text"], input[type="number"], select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: var(--font);
+            outline: none;
+            transition: 0.2s;
+            backdrop-filter: blur(5px);
+            color-scheme: dark;
+        }
+        textarea:focus, input:focus, select:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent);
+        }
+        select option {
+            background: var(--bg, #111111);
+            color: var(--text-primary, #ffffff);
+            accent-color: var(--accent);
+        }
+        select option:checked {
+            background: var(--accent, #6ecbff);
+            color: #000000;
+        }
+        textarea { height: 150px; resize: none; font-size: 0.8rem; }
+
+        .icon-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 10px;
+            background: var(--input-bg);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .icon-opt {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        .icon-opt:hover { background: rgba(255,255,255,0.1); }
+        .icon-opt.selected { border-color: var(--accent); background: var(--accent-glow); }
+        .icon-opt svg { width: 24px; height: 24px; stroke: white; fill: none; stroke-width: 2; }
+
+        .preset-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preset-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.7rem;
+            color: white;
+            transition: 0.2s;
+        }
+
+        .preset-btn:hover { background: var(--accent); color: black; font-weight: bold; }
+
+        .btn-start {
+            background: var(--accent);
+            color: black;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-family: var(--font);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 10px;
+        }
+        .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #app-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: none; background: var(--bg); }
+
+        .shortcut-input {
+            text-align: center;
+            font-weight: bold;
+            color: var(--accent);
+            cursor: pointer;
+            caret-color: transparent;
+        }
+        .shortcut-input:focus { background: var(--accent-glow); }
+
+        .error-msg { color: #ff4444; font-size: 0.75rem; margin-top: 5px; display: none; }
+
+        .skeleton {
+            background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* --- ONLINE DOT GLOW --- */
+        @keyframes dotGlow {
+            0%, 100% { text-shadow: 0 0 6px var(--accent), 0 0 12px var(--accent); opacity: 1; }
+            50% { text-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent), 0 0 36px var(--accent); opacity: 0.7; }
+        }
+        .online-dot {
+            display: inline-block;
+            animation: dotGlow 2s ease-in-out infinite;
+            color: var(--accent);
+        }
+        .online-count-val { color: var(--accent); }
+        .total-visits-display {
+            font-size: 0.72em;
+            opacity: 0.38;
+            margin-left: 14px;
+            letter-spacing: 0;
+        }
+
+        /* --- WORD LIST EDITOR --- */
+        .word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .word-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .word-row input[type="text"] {
+            flex: 1;
+            padding: 9px 12px;
+            margin: 0;
+        }
+        .word-del-btn {
+            background: transparent;
+            border: 1px solid rgba(255,68,68,0.4);
+            color: #ff4444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            padding: 8px 10px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .word-del-btn:hover { background: rgba(255,68,68,0.15); }
+
+        /* --- ACCENT SCROLLBARS --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; opacity: 0.7; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); opacity: 1; }
+        * { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
+
+        /* --- README MODAL --- */
+        .readme-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .readme-modal {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 780px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+        .readme-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 12px;
+        }
+        .readme-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .readme-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.18s;
+            white-space: nowrap;
+        }
+        .readme-tab-btn:hover { color: var(--text-primary); }
+        .readme-tab-btn.active { background: var(--accent); color: #000; font-weight: bold; }
+        .readme-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .readme-close:hover { border-color: var(--accent); color: var(--accent); }
+        .readme-panel {
+            overflow-y: auto;
+            padding: 24px;
+            flex-grow: 1;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            display: none;
+        }
+        .readme-panel.active { display: block; }
+        .readme-body { color: #d1d5db; }
+        .readme-body h1, .readme-body h2, .readme-body h3 { color: var(--accent); margin: 1.2em 0 0.4em; }
+        .readme-body h1 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .readme-body h2 { font-size: 1.2em; }
+        .readme-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .readme-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 12px 0; }
+        .readme-body pre code { background: transparent; padding: 0; color: white; }
+        .readme-body a { color: var(--accent); text-decoration: underline; }
+        .readme-body ul, .readme-body ol { padding-left: 24px; margin: 8px 0; }
+        .readme-body li { margin: 4px 0; }
+        .readme-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--text-dim); margin: 12px 0; }
+        .readme-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+        .readme-body img { max-width: 100%; border-radius: 8px; }
+        .readme-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .readme-body th, .readme-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        .readme-body th { background: rgba(255,255,255,0.05); color: var(--accent); }
+        /* versions list */
+        .versions-panel { color: var(--text-dim); }
+        .versions-list { display: flex; flex-direction: column; gap: 8px; }
+        .version-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 13px 16px;
+            cursor: pointer;
+            transition: 0.18s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .version-item:hover { border-color: var(--accent); background: rgba(255,255,255,0.06); }
+        .version-sha {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: rgba(110,203,255,0.1);
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+        .version-info { flex: 1; min-width: 0; }
+        .version-title {
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 3px;
+        }
+        .version-meta { font-size: 0.72rem; color: var(--text-dim); }
+        .version-has-body {
+            font-size: 0.65rem;
+            color: var(--accent);
+            border: 1px solid rgba(110,203,255,0.4);
+            border-radius: 3px;
+            padding: 1px 5px;
+            flex-shrink: 0;
+            align-self: flex-start;
+            margin-top: 3px;
+        }
+        /* version detail */
+        .version-detail { display: none; flex-direction: column; }
+        .version-detail.active { display: flex; }
+        .version-detail-back {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: 0.18s;
+            user-select: none;
+            width: fit-content;
+        }
+        .version-detail-back:hover { color: var(--accent); }
+        .version-detail-back svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; flex-shrink: 0; }
+        .version-detail-tag {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .version-detail-title { font-size: 1rem; font-weight: bold; color: var(--text-primary); margin-bottom: 8px; line-height: 1.4; }
+        .version-detail-meta { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .version-detail-meta span { color: var(--accent); }
+        .version-detail-body { color: #d1d5db; }
+        .version-detail-body h1, .version-detail-body h2, .version-detail-body h3 { color: var(--accent); margin: 1em 0 0.4em; }
+        .version-detail-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .version-detail-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+        .version-detail-body pre code { background: transparent; padding: 0; color: white; }
+        .version-detail-body a { color: var(--accent); }
+        .version-detail-body ul, .version-detail-body ol { padding-left: 22px; margin: 8px 0; }
+        .version-detail-body li { margin: 4px 0; }
+        .version-detail-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 10px 0; color: var(--text-dim); }
+        .version-detail-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+        /* --- UPDATE MODAL --- */
+        .update-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .update-modal {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 20px rgba(0,0,0,0.8);
+        }
+        .update-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 14px;
+        }
+        .update-header-left { flex: 1; }
+        .update-tag {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .update-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.4;
+        }
+        .update-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .update-close:hover { border-color: var(--accent); color: var(--accent); }
+        .update-body {
+            overflow-y: auto;
+            padding: 20px 24px;
+            flex-grow: 1;
+            color: var(--text-dim);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 0.88rem;
+            line-height: 1.7;
+        }
+        .update-body h1, .update-body h2, .update-body h3 { color: var(--accent); margin: 1em 0 0.4em; }
+        .update-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; color: var(--accent); }
+        .update-body pre { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+        .update-body pre code { background: transparent; padding: 0; color: var(--text-primary); }
+        .update-body a { color: var(--accent); }
+        .update-body ul, .update-body ol { padding-left: 22px; margin: 8px 0; }
+        .update-body li { margin: 4px 0; }
+        .update-body blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 10px 0; }
+        .update-body hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+        .update-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .update-footer-meta { font-size: 0.72rem; color: var(--text-dim); }
+        .update-footer-meta span { color: var(--accent); }
+
+        /* --- CUSTOM SHORTCUTS LIST --- */
+        .custom-shortcut-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .custom-shortcut-row .shortcut-input {
+            width: 60px;
+            flex-shrink: 0;
+            padding: 10px 6px;
+        }
+        .custom-shortcut-row select {
+            flex: 1;
+            margin: 0;
+            padding: 10px 12px;
+        }
+        .custom-shortcut-row .word-del-btn {
+            flex-shrink: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar" id="main-sidebar">
+        <div class="logo-box" onclick="openReadmeModal()" title="View README" style="cursor:pointer;">◈</div>
+        <div class="nav-group" id="sidebar-nav-top"></div>
+        <div class="sidebar-bottom" id="sidebar-nav-bottom"></div>
+    </aside>
+
+    <div class="status-hud" id="home-hud">
+        <div class="bat-container">
+            <div class="bat-shell"><div class="bat-level" id="bat-fill"></div></div>
+            <span id="bat-text">--%</span>
+        </div>
+        ⚡ FPS: <text id="fps">--</text><br>
+        📡 PING: <text id="ping">--</text> ms
+    </div>
+
+    <div class="social-hud" id="social-hud">
+        <div class="social-container">
+            <a href="https://discord.gg/dKs2sUNUXd" target="_blank" class="social-icon" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.419-2.157 2.419z"/></svg>
+            </a>
+            <a href="https://github.com/virtuan4-max/ghostlinkhub" target="_blank" class="social-icon" title="GitHub">
+                <svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+            <a href="https://github.com/virtuan4-max" target="_blank" class="dev-avatar" style="background-image: url('https://avatars.githubusercontent.com/u/233476218?v=4');" title="Developer"></a></div>
+        </div>
+    </div>
+
+    <main class="main-view">
+        <section id="home-content" class="view-section">
+            <div class="hero">
+                <h1>Welcome to<br><span id="typewriter"></span></h1>
+                <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">
+                    GhostLink Network // <span class="online-count-val" id="online-count">...</span> <span class="online-dot">•</span><span class="total-visits-display" id="total-visits">...</span>
+                </p>
+                <button class="btn-start" onclick="nav(document.getElementById('init-target-select')?.value || 'games')">INITIALIZE SYSTEMS</button>
+            </div>
+            <div class="clock-container">
+                <div id="home-clock">00:00:00</div>
+                <div id="home-date">LOADING SYSTEM...</div>
+            </div>
+        </section>
+
+        <section id="customapps" class="view-section">
+            <div class="settings-header">
+                <h2>Custom Tools</h2>
+                <p style="color:var(--text-dim)">Manage and run your locally stored HTML applications.</p>
+            </div>
+            <div class="settings-card">
+                <h3 id="app-editor-title">Create New App</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <div class="input-group">
+                            <label>App Name</label>
+                            <input type="text" id="new-app-name" placeholder="Quick Note">
+                            <div id="name-error" class="error-msg">An app with this name already exists.</div>
+                        </div>
+                        <div class="input-group">
+                            <label>Sidebar Icon</label>
+                            <div class="icon-selector" id="icon-library"></div>
+                            <input type="text" id="new-app-svg" placeholder="Or paste SVG code">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="input-group">
+                            <label>Content (URL or HTML)</label>
+                            <textarea id="new-app-html" placeholder="https://example.com OR <div>Hello</div>"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label><input type="checkbox" id="new-app-pin"> Pin to Sidebar</label>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="save-app-btn" class="btn-start" onclick="saveNewApp()" style="flex: 1;">INSTALL APP</button>
+                            <button id="cancel-edit-btn" class="btn-start" onclick="clearAppForm()" style="flex: 1; background: #333; color: white; display: none;">CANCEL</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="app-grid" id="installed-apps"></div>
+        </section>
+
+        <section id="marketplace" class="view-section">
+            <div class="settings-header">
+                <h2>App Registry</h2>
+                <p style="color:var(--text-dim)">
+                    Discover and install community-driven tools and games, 
+                    <a href="https://github.com/virtuan4-max/ghostlink-apps" target="_blank" style="color:var(--accent); text-decoration:underline;">or upload your apps to the marketplace</a>.
+                </p>
+            </div>
+
+            <input type="text" class="search-bar" id="market-search" placeholder="Search the marketplace..." oninput="filterMarketplace()">
+            
+            <div class="app-grid" id="market-apps">
+                </div>
+        </section>
+
+        <section id="settings" class="view-section">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <p style="color:var(--text-dim)">Global configuration and tab cloaking.</p>
+            </div>
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <h3>Tab Cloaker</h3>
+                    <div class="input-group">
+                        <label>Custom Title</label>
+                        <input type="text" id="cloak-title" placeholder="New Tab" oninput="applyCloak()">
+                    </div>
+                    <div class="input-group">
+                        <label>Favicon URL</label>
+                        <input type="text" id="cloak-icon" placeholder="https://google.com/favicon.ico" oninput="applyCloak()">
+                    </div>
+                    <label>Presets</label>
+                    <div class="preset-container" id="preset-list"></div>
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px;">Open GhostLink disguised inside an <code style="color:var(--accent); background:rgba(255,255,255,0.07); padding:1px 5px; border-radius:4px;">about:blank</code> tab for maximum stealth.</p>
+                        <button class="btn-start" onclick="openAboutBlankCloak()" style="margin-top:0; width:100%;">OPEN IN ABOUT:BLANK</button>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Visuals & Background</h3>
+                    <div class="input-group">
+                        <label>Accent Color</label>
+                        <input type="text" id="theme-color" value="#6ecbff" oninput="applyTheme()">
+                        <input type="color" id="theme-picker" value="#6ecbff" style="margin-top:10px; width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="syncColor(this.value)">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="input-group">
+                            <label>Primary Text</label>
+                            <input type="color" id="text-primary-picker" value="#ffffff" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background:transparent;" oninput="applyTextColors()">
+                        </div>
+                        <div class="input-group">
+                            <label>Secondary Text</label>
+                            <input type="color" id="text-dim-picker" value="#94a3b8" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background:transparent;" oninput="applyTextColors()">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Background Color</label>
+                        <input type="color" id="bg-picker" value="#000000" style="width:100%; border:none; height:35px; border-radius:8px; cursor:pointer; background: transparent;" oninput="applyBackground('color', this.value)">
+                    </div>
+                    <div class="input-group">
+                        <label>Custom Wallpaper</label>
+                        <input type="text" id="bg-url" placeholder="Image URL" oninput="applyBackground('url', this.value)">
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button class="btn-small" onclick="document.getElementById('bg-upload').click()" style="flex:1;">UPLOAD IMAGE</button>
+                            <button class="btn-small" onclick="clearBackground()" style="flex:1; color:#ff4444; border-color:rgba(255,68,68,0.4);">✕ CLEAR</button>
+                        </div>
+                        <input type="file" id="bg-upload" hidden accept="image/*" onchange="handleBgUpload(this)">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label>Blur (px)</label>
+                            <input type="number" id="bg-blur-input" value="0" min="0" max="50" oninput="applyBackground('blur', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Brightness (%)</label>
+                            <input type="number" id="bg-bright-input" value="100" min="0" max="200" oninput="applyBackground('brightness', this.value)">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Font Family</label>
+                        <select id="font-select" onchange="document.getElementById('font-custom-family').value=''; applyTheme()">
+                            <option value="'Courier New', monospace">Retro Mono</option>
+                            <option value="'Inter', sans-serif">Modern Sans</option>
+                            <option value="'Segoe UI', sans-serif">System UI</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Custom Font URL <span style="color:var(--accent); font-size:0.7em;">(Google Fonts / any CSS stylesheet)</span></label>
+                        <input type="text" id="font-url-input" placeholder="https://fonts.googleapis.com/css2?family=Orbitron&display=swap">
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <input type="text" id="font-custom-family" placeholder="Font family name, e.g. Orbitron" style="flex:1; margin:0;" oninput="applyTheme()">
+                            <button class="btn-small run" onclick="loadCustomFont()" style="white-space:nowrap; flex-shrink:0;">LOAD</button>
+                        </div>
+                        <p style="font-size:0.7rem; color:var(--text-dim); margin-top:6px;">Enter the font name exactly as it appears on Google Fonts, then hit LOAD.</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Homescreen</h3>
+
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Typewriter Words</p>
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 10px;">Edit the words the typewriter cycles through on the home screen.</p>
+                    <div class="word-list" id="word-list"></div>
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+                        <input type="text" id="new-word-input" placeholder="Add a new word..." style="flex:1; margin:0;" onkeydown="if(event.key==='Enter') addTypewriterWord()">
+                        <button class="btn-small run" onclick="addTypewriterWord()" style="white-space:nowrap;">+ ADD</button>
+                    </div>
+
+                    <div style="padding-top:16px; border-top:1px solid var(--border); margin-bottom:16px;">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Initialize Systems Button</p>
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label>Navigate to</label>
+                            <select id="init-target-select" onchange="saveConfig()">
+                                <option value="games">Games</option>
+                                <option value="home">Home</option>
+                                <option value="ai">AI Terminal</option>
+                                <option value="proxy">Proxy</option>
+                                <option value="customapps">Custom Apps</option>
+                                <option value="marketplace">Marketplace</option>
+                                <option value="settings">Settings</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="padding-top:16px; border-top:1px solid var(--border);">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform:uppercase; letter-spacing:1px;">Clock & Date Display</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Time Format</label>
+                                <select id="clock-format-select" onchange="saveConfig(); updateClock()">
+                                    <option value="24h-s">24h with seconds</option>
+                                    <option value="24h">24h no seconds</option>
+                                    <option value="12h-s">12h with seconds</option>
+                                    <option value="12h">12h no seconds</option>
+                                    <option value="off">Hide clock</option>
+                                </select>
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Date Format</label>
+                                <select id="date-format-select" onchange="saveConfig(); updateClock()">
+                                    <option value="full">Full (Mon, Jan 1, 2025)</option>
+                                    <option value="short">Short (Mon, Jan 1)</option>
+                                    <option value="numeric">Numeric (01/01/2025)</option>
+                                    <option value="iso">ISO (2025-01-01)</option>
+                                    <option value="off">Hide date</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Keyboard Shortcuts</h3>
+                    <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 15px;">Click a box and press a key to rebind. Alt + Key.</p>
+                    <div class="input-group">
+                        <label>Open Home (Alt + ?)</label>
+                        <input type="text" class="shortcut-input" id="sc-home" readonly onclick="captureShortcut('home')">
+                    </div>
+                    <div class="input-group">
+                        <label>Open Games (Alt + ?)</label>
+                        <input type="text" class="shortcut-input" id="sc-games" readonly onclick="captureShortcut('games')">
+                    </div>
+                    <div class="input-group">
+                        <label>Panic Key (Immediate Cloak)</label>
+                        <input type="text" class="shortcut-input" id="sc-panic" readonly onclick="captureShortcut('panic')">
+                    </div>
+
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Custom Keybinds</p>
+                        <div id="custom-shortcuts-list"></div>
+                        <div class="custom-shortcut-row" style="margin-top: 10px;">
+                            <input type="text" class="shortcut-input" id="new-sc-key" placeholder="KEY" readonly style="width:60px; flex-shrink:0;" onclick="captureNewShortcutKey()">
+                            <select id="new-sc-action" style="flex:1; margin:0; padding:10px 12px;">
+                                <option value="home">Home</option>
+                                <option value="games">Games</option>
+                                <option value="ai">AI Terminal</option>
+                                <option value="proxy">Proxy</option>
+                                <option value="customapps">Custom Apps</option>
+                                <option value="marketplace">Marketplace</option>
+                                <option value="settings">Settings</option>
+                            </select>
+                            <button class="btn-small run" onclick="addCustomShortcut()" style="white-space:nowrap; flex-shrink:0;">+ ADD</button>
+                        </div>
+                    </div>
+
+                    <button class="btn-small" onclick="resetShortcuts()" style="width:100%; margin-top:12px;">RESET SHORTCUTS</button>
+                </div>
+
+                <div class="settings-card">
+                    <h3>System Management</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">Export your apps and settings to a JSON file or import them from another device.</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-start" onclick="exportData()" style="margin-top:0;">EXPORT CONFIG</button>
+                        <button class="btn-start" onclick="document.getElementById('import-file').click()" style="margin-top:0; background:#333; color:white;">IMPORT CONFIG</button>
+                        <input type="file" id="import-file" hidden accept=".json" onchange="importData(this)">
+                        <button class="btn-start" style="background:#ef4444; color:white; margin-top:20px;" onclick="resetSettings()">FACTORY RESET</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <iframe id="app-frame" onload="sendThemeToIframe()"></iframe>
+    </main>
+
+    <!-- README MODAL -->
+    <div class="readme-overlay" id="readme-overlay" style="display:none;" onclick="if(event.target===this)closeReadmeModal()">
+        <div class="readme-modal">
+            <div class="readme-header">
+                <div class="readme-tabs">
+                    <button class="readme-tab-btn active" id="tab-btn-readme" onclick="switchReadmeTab('readme')">README</button>
+                    <button class="readme-tab-btn" id="tab-btn-versions" onclick="switchReadmeTab('versions')">VERSIONS</button>
+                </div>
+                <button class="readme-close" onclick="closeReadmeModal()">✕</button>
+            </div>
+
+            <!-- README PANEL -->
+            <div class="readme-panel readme-body active" id="readme-panel">
+                <div class="skeleton" style="height:24px; margin-bottom:12px;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:70%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:85%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:60%;"></div>
+            </div>
+
+            <!-- VERSIONS PANEL -->
+            <div class="readme-panel versions-panel" id="versions-panel">
+                <!-- list view -->
+                <div id="versions-list-view">
+                    <div class="versions-list" id="versions-list">
+                        <div class="skeleton" style="height:60px; border-radius:10px; margin-bottom:8px;"></div>
+                        <div class="skeleton" style="height:60px; border-radius:10px; margin-bottom:8px;"></div>
+                        <div class="skeleton" style="height:60px; border-radius:10px;"></div>
+                    </div>
+                </div>
+                <!-- detail view -->
+                <div id="versions-detail-view" class="version-detail">
+                    <div class="version-detail-back" onclick="versionsBackToList()">
+                        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                        BACK TO VERSIONS
+                    </div>
+                    <div class="version-detail-tag">◈ Commit</div>
+                    <div class="version-detail-title" id="vd-title"></div>
+                    <div class="version-detail-meta" id="vd-meta"></div>
+                    <div class="version-detail-body" id="vd-body"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPDATE MODAL -->
+    <div class="update-overlay" id="update-overlay" style="display:none;">
+        <div class="update-modal">
+            <div class="update-header">
+                <div class="update-header-left">
+                    <div class="update-tag">◈ New Update</div>
+                    <h3 id="update-title">Loading...</h3>
+                </div>
+                <button class="update-close" onclick="dismissUpdate()" title="Dismiss">✕</button>
+            </div>
+            <div class="update-body" id="update-body">
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:90%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px; width:75%;"></div>
+                <div class="skeleton" style="height:16px; margin-bottom:8px;"></div>
+            </div>
+            <div class="update-footer">
+                <div class="update-footer-meta" id="update-meta"></div>
+                <button class="btn-small run" onclick="dismissUpdate()">GOT IT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_WORDS = ["GhostLink.", "Knowhere.", "modularity.", "blueeeee.", "anonymity.", "the OASIS.", "freedom.", "the hub ;P.", "liminality.", "simulation."];
+        let words = JSON.parse(localStorage.getItem('ghostlink_words')) || DEFAULT_WORDS.slice();
+
+        const tabPresets = [
+            { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
+            { name: "Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
+            { name: "Classroom", title: "Classes", icon: "https://www.gstatic.com/classroom/favicon.png" },
+            { name: "Blooket", title: "Blooket", icon: "https://ac.blooket.com/dashboard/favicon.ico" },
+            { name: "Desmos", title: "Desmos | Graphing Calculator", icon: "https://www.desmos.com/favicon.ico" },
+            { name: "Canvas", title: "Dashboard", icon: "https://du11hjcvx0uqb.cloudfront.net/br/dist/images/favicon-e10d657a73.ico" },
+            { name: "Khan Academy", title: "Khan Academy", icon: "https://www.khanacademy.org/favicon.ico" },
+            { name: "Wikipedia", title: "Wikipedia, the free encyclopedia", icon: "https://en.wikipedia.org/static/favicon/wikipedia.ico" },
+            { name: "Docs", title: "Google Docs", icon: "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico" },
+            { name: "Edpuzzle", title: "Edpuzzle", icon: "https://edpuzzle.imgix.net/favicons/favicon-32.png" },
+            { name: "about:blank", title: "about:blank", icon: "https://www.none" }
+        ];
+
+        const svgLibrary = [
+            `<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+            `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`,
+            `<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
+            `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
+            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
+        ];
+
+        // --- SYSTEM PAGE DATA ---
+        const systemPages = [
+            { id: 'home', name: 'Home', svg: `<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
+            { id: 'games', name: 'Games', svg: `<svg viewBox="0 0 24 24"><rect x="2" width="20" height="12" rx="2"/><path d="M6 12v4"/><path d="M10 12v4"/><path d="M14 12v4"/><path d="M18 12v4"/></svg>` },
+            { id: 'ai', name: 'AI Terminal', svg: `<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>` },
+            { id: 'proxy', name: 'Proxy', svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>` },
+            { id: 'customapps', name: 'Custom Apps', svg: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 14h7v7H3z"/></svg>` },
+            { id: 'marketplace', name: 'Marketplace', svg: `<svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>` },
+            { id: 'settings', name: 'Settings', svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` }
+        ];
+
+        let customApps = JSON.parse(localStorage.getItem('ghostlink_apps')) || [];
+        let marketplaceApps = [];
+        let editingAppId = null;
+        let shortcuts = JSON.parse(localStorage.getItem('ghostlink_shortcuts')) || { home: 'H', games: 'G', panic: 'P', custom: [] };
+        if (!shortcuts.custom) shortcuts.custom = [];
+        
+        let navOrder = JSON.parse(localStorage.getItem('ghostlink_nav_order')) || {
+            top: ['home', 'games', 'ai', 'proxy'],
+            bottom: ['customapps', 'marketplace', 'settings']
+        };
+
+        // --- SUPABASE SETUP 
+        const SUPABASE_URL = 'https://npvjxyxnmdcncupbwdsx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdmp4eXhubWRjbmN1cGJ3ZHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTU0MjcsImV4cCI6MjA4Mjg3MTQyN30.hZhxWo1iR8O0r66vIeElcsPy1PljtpJ_dEbAOvhrr1Q';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        async function initTotalVisits() {
+            const { data, error } = await supabaseClient.rpc('increment_views');
+            const el = document.getElementById('total-visits');
+            if (!el) return;
+            if (error) { console.error('Views RPC error:', error); el.textContent = ''; return; }
+            el.textContent = Number(data).toLocaleString() + ' visits';
+        }
+        function initOnlineUsers() {
+            const onlineEl = document.getElementById('online-count');
+            const sessionKey = 'gl_' + Math.random().toString(36).substr(2, 9);
+
+            const channel = supabaseClient.channel('ghostlink-online', {
+                config: { presence: { key: sessionKey } }
+            });
+
+            channel.on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const count = Object.keys(state).length;
+                if (onlineEl) onlineEl.textContent = count.toLocaleString();
+            });
+
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ online_at: new Date().toISOString() });
+                }
+            });
+        }
+
+        // --- NAV ---
+        async function nav(page, appData = null) {
+            const frame = document.getElementById('app-frame');
+            const home = document.getElementById('home-content');
+            const settings = document.getElementById('settings');
+            const customAppsView = document.getElementById('customapps');
+            const marketplaceView = document.getElementById('marketplace');
+            const hud = document.getElementById('home-hud');
+            const socialHud = document.getElementById('social-hud');
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            if (appData) {
+                const navItem = document.getElementById(`nav-app-${appData.id}`);
+                if (navItem) navItem.classList.add('active');
+            } else {
+                const navItemId = 'nav-' + page; 
+                const navItem = document.getElementById(navItemId);
+                if (navItem) navItem.classList.add('active');
+            }
+
+            [home, settings, customAppsView, marketplaceView, frame, hud, socialHud].forEach(el => {
+                if (el) el.style.display = 'none';
+            });
+
+            if (page === 'home') {
+                home.style.display = 'flex';
+                hud.style.display = 'block';
+                socialHud.style.display = 'block';
+            } else if (page === 'settings') {
+                settings.style.display = 'block';
+                renderWordsEditor();
+                renderCustomShortcuts();
+            } else if (page === 'customapps') {
+                customAppsView.style.display = 'block'; 
+                renderAppList();
+            } else if (page === 'marketplace') {
+                marketplaceView.style.display = 'block';
+                renderMarketplace(marketplaceApps);
+                fetchMarketplace();
+            } else if (page === 'run_custom' && appData) {
+                loadIntoFrame(appData.content);
+            } else if (['ai', 'games', 'proxy'].includes(page)) {
+                const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/';
+                const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
+                sendThemeToIframe();
+                loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
+                sendThemeToIframe();
+            }
+        }
+
+        // --- MARKETPLACE SYSTEM ---
+        async function fetchMarketplace() {
+            const container = document.getElementById('market-apps');
+            if (marketplaceApps.length > 0) return;
+
+            try {
+                const apiURL = "https://api.github.com/repos/virtuan4-max/ghostlink-apps/contents/apps";
+                const response = await fetch(apiURL);
+                const files = await response.json();
+
+                const fetchPromises = files
+                    .filter(file => file.name.endsWith('.json'))
+                    .map(file => fetch(file.download_url).then(res => res.json()));
+
+                marketplaceApps = await Promise.all(fetchPromises);
+                renderMarketplace(marketplaceApps);
+            } catch (err) {
+                console.error("Marketplace Load Error:", err);
+                container.innerHTML = `<p style="color:#ff4444">Failed to connect to the registry. Check your connection.</p>`;
+            }
+        }
+
+        function renderMarketplace(apps) {
+            const container = document.getElementById('market-apps');
+            if (!apps || apps.length === 0) return;
+            
+            container.innerHTML = '';
+            apps.forEach((app, index) => {
+                const isInstalled = customApps.some(a => a.name === app.name);
+                const card = document.createElement('div');
+                card.className = 'app-card';
+                card.style.animationDelay = `${index * 0.05}s`;
+                card.innerHTML = `
+                    <div class="app-card-header">
+                        <div class="app-card-icon">${app.svg}</div>
+                        <div class="app-card-title">${app.name}</div>
+                    </div>
+                    <div class="app-card-desc">${app.description || 'No description provided.'}</div>
+                    <p style="font-size:10px; color:var(--accent)">by ${app.author || 'Anonymous'}</p>
+                    <div class="app-actions">
+                        ${isInstalled ? 
+                            `<button class="btn-small installed">INSTALLED</button>` : 
+                            `<button class="btn-small run" onclick='installFromMarket("${app.name}")'>INSTALL</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterMarketplace() {
+            const query = document.getElementById('market-search').value.toLowerCase();
+            const filtered = marketplaceApps.filter(app => 
+                app.name.toLowerCase().includes(query) || 
+                app.description.toLowerCase().includes(query)
+            );
+            renderMarketplace(filtered);
+        }
+
+        function installFromMarket(appName) {
+            const app = marketplaceApps.find(a => a.name === appName);
+            if (!app) return;
+
+            const newApp = {
+                id: 'app_' + Date.now(),
+                name: app.name,
+                content: app.url,
+                svg: app.svg,
+                pinned: true 
+            };
+
+            customApps.push(newApp);
+            localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+            
+            navOrder.top.push(`app_${newApp.id}`);
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+
+            renderMarketplace(marketplaceApps);
+            updateSidebar();
+            nav('run_custom', newApp);
+        }
+
+        // --- CUSTOM APP SYSTEM ---
+        function renderAppList() {
+            const container = document.getElementById('installed-apps');
+            container.innerHTML = '';
+            customApps.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'app-card';
+                card.innerHTML = `
+                    <div class="app-card-header">
+                        <div class="app-card-icon">${app.svg}</div>
+                        <div class="app-card-title">${app.name}</div>
+                    </div>
+                    <div class="app-actions">
+                        <button class="btn-small run" onclick='runSavedApp("${app.id}")'>LAUNCH</button>
+                        <button class="btn-small" onclick='editApp("${app.id}")'>EDIT</button>
+                        <button class="btn-small" onclick="deleteApp('${app.id}')" style="color:#ff4444">REMOVE</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function runSavedApp(id) {
+            const app = customApps.find(a => a.id === id);
+            if (app) nav('run_custom', app);
+        }
+
+        function editApp(id) {
+            const app = customApps.find(a => a.id === id);
+            if (!app) return;
+
+            editingAppId = id;
+            document.getElementById('new-app-name').value = app.name;
+            document.getElementById('new-app-html').value = app.content;
+            document.getElementById('new-app-svg').value = app.svg;
+            document.getElementById('new-app-pin').checked = app.pinned;
+            
+            document.getElementById('app-editor-title').innerText = "Edit App: " + app.name;
+            document.getElementById('save-app-btn').innerText = "UPDATE APP";
+            document.getElementById('cancel-edit-btn').style.display = "block";
+
+            document.querySelectorAll('.icon-opt').forEach(opt => {
+                if(opt.innerHTML === app.svg) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            });
+
+            document.getElementById('customapps').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearAppForm() {
+            editingAppId = null;
+            document.getElementById('new-app-name').value = '';
+            document.getElementById('new-app-html').value = '';
+            document.getElementById('new-app-svg').value = '';
+            document.getElementById('new-app-pin').checked = false;
+            document.getElementById('name-error').style.display = 'none';
+            document.getElementById('app-editor-title').innerText = "Create New App";
+            document.getElementById('save-app-btn').innerText = "INSTALL APP";
+            document.getElementById('cancel-edit-btn').style.display = "none";
+            document.querySelectorAll('.icon-opt').forEach(o => o.classList.remove('selected'));
+        }
+
+        function saveNewApp() {
+            const name = document.getElementById('new-app-name').value.trim();
+            const content = document.getElementById('new-app-html').value;
+            const svg = document.getElementById('new-app-svg').value || svgLibrary[0];
+            const pinned = document.getElementById('new-app-pin').checked;
+            const errorEl = document.getElementById('name-error');
+
+            if (!name || !content) return;
+
+            const isDuplicate = customApps.some(app => 
+                app.name.toLowerCase() === name.toLowerCase() && app.id !== editingAppId
+            );
+
+            if (isDuplicate) {
+                errorEl.style.display = 'block';
+                return;
+            } else {
+                errorEl.style.display = 'none';
+            }
+
+            let savedApp;
+            if (editingAppId) {
+                const index = customApps.findIndex(a => a.id === editingAppId);
+                const wasPinned = customApps[index].pinned;
+                customApps[index] = { ...customApps[index], name, content, svg, pinned };
+                savedApp = customApps[index];
+                
+                if (pinned && !wasPinned) {
+                    if (!navOrder.top.includes(`app_${savedApp.id}`)) {
+                        navOrder.top.push(`app_${savedApp.id}`);
+                    }
+                } 
+                else if (!pinned && wasPinned) {
+                    navOrder.top = navOrder.top.filter(i => i !== `app_${savedApp.id}`);
+                    navOrder.bottom = navOrder.bottom.filter(i => i !== `app_${savedApp.id}`);
+                }
+            } else {
+                savedApp = { id: 'app_' + Date.now(), name, content, svg, pinned };
+                customApps.push(savedApp);
+                
+                if (pinned) {
+                    navOrder.top.push(`app_${savedApp.id}`);
+                }
+            }
+
+            localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+            
+            updateSidebar();
+            clearAppForm();
+            renderAppList();
+            renderMarketplace(marketplaceApps);
+            nav('run_custom', savedApp);
+        }
+
+        function deleteApp(id) {
+            {
+                customApps = customApps.filter(a => a.id !== id);
+                navOrder.top = navOrder.top.filter(i => i !== `app_${id}`);
+                navOrder.bottom = navOrder.bottom.filter(i => i !== `app_${id}`);
+                localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+                localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+                if (editingAppId === id) clearAppForm();
+                renderAppList();
+                renderMarketplace(marketplaceApps);
+                updateSidebar();
+            }
+        }
+
+        // --- SIDEBAR DRAG AND DROP ---
+        function updateSidebar() {
+            const topGroup = document.getElementById('sidebar-nav-top');
+            const bottomGroup = document.getElementById('sidebar-nav-bottom');
+            
+            topGroup.innerHTML = '';
+            bottomGroup.innerHTML = '';
+
+            const createNavItem = (id) => {
+                let itemData;
+                let isCustom = false;
+
+                if (id.startsWith('app_')) {
+                    const appId = id.replace('app_', '');
+                    itemData = customApps.find(a => a.id === appId);
+                    isCustom = true;
+                } else {
+                    itemData = systemPages.find(p => p.id === id);
+                }
+
+                if (!itemData) return null;
+
+                const div = document.createElement('div');
+                div.id = isCustom ? `nav-app-${itemData.id}` : `nav-${itemData.id}`;
+                div.className = 'nav-item';
+                div.draggable = true;
+                div.dataset.id = id;
+                div.onclick = () => isCustom ? nav('run_custom', itemData) : nav(itemData.id);
+                div.innerHTML = `${itemData.svg}<span>${itemData.name}</span>`;
+
+                div.addEventListener('dragstart', () => div.classList.add('dragging'));
+                div.addEventListener('dragend', () => {
+                    div.classList.remove('dragging');
+                    saveNavOrder();
+                });
+
+                return div;
+            };
+
+            navOrder.top.forEach(id => {
+                const el = createNavItem(id);
+                if (el) topGroup.appendChild(el);
+            });
+
+            navOrder.bottom.forEach(id => {
+                const el = createNavItem(id);
+                if (el) bottomGroup.appendChild(el);
+            });
+
+            initDragHandlers(topGroup);
+            initDragHandlers(bottomGroup);
+        }
+
+        function initDragHandlers(container) {
+            container.addEventListener('dragover', e => {
+                e.preventDefault();
+                const dragging = document.querySelector('.dragging');
+                const afterElement = getDragAfterElement(container, e.clientY);
+                if (afterElement == null) {
+                    container.appendChild(dragging);
+                } else {
+                    container.insertBefore(dragging, afterElement);
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.nav-item:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveNavOrder() {
+            const topIds = [...document.querySelectorAll('#sidebar-nav-top .nav-item')].map(el => el.dataset.id);
+            const bottomIds = [...document.querySelectorAll('#sidebar-nav-bottom .nav-item')].map(el => el.dataset.id);
+            
+            navOrder.top = topIds;
+            navOrder.bottom = bottomIds;
+            localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+        }
+
+        // --- BACKGROUND SYSTEM ---
+        function applyBackground(type, val) {
+            const root = document.documentElement;
+            const sidebar = document.getElementById('main-sidebar');
+            const bgUrlInput = document.getElementById('bg-url');
+            const currentImg = bgUrlInput.value;
+            const hasImage = currentImg && currentImg !== 'none';
+            
+            if (type === 'color') {
+                root.style.setProperty('--bg', val);
+                if (!hasImage) {
+                    root.style.setProperty('--sidebar-bg', val);
+                    sidebar.style.backdropFilter = "none";
+                }
+            } else if (type === 'url') {
+                const newHasImage = val && val !== 'none';
+                root.style.setProperty('--bg-image', newHasImage ? `url(${val})` : 'none');
+                
+                if (newHasImage) {
+                    root.style.setProperty('--sidebar-bg', 'rgba(5, 5, 5, 0.3)');
+                    sidebar.style.backdropFilter = "blur(15px) saturate(180%)";
+                    root.style.setProperty('--bg-blur', document.getElementById('bg-blur-input').value + 'px');
+                    root.style.setProperty('--bg-brightness', document.getElementById('bg-bright-input').value + '%');
+                } else {
+                    const currentBgColor = document.getElementById('bg-picker').value;
+                    root.style.setProperty('--sidebar-bg', currentBgColor);
+                    sidebar.style.backdropFilter = "none";
+                    root.style.setProperty('--bg-blur', '0px');
+                    root.style.setProperty('--bg-brightness', '100%');
+                }
+            } else if (type === 'blur') {
+                if (hasImage) root.style.setProperty('--bg-blur', val + 'px');
+            } else if (type === 'brightness') {
+                if (hasImage) root.style.setProperty('--bg-brightness', val + '%');
+            }
+            saveConfig();
+        }
+
+        function handleBgUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const b64 = e.target.result;
+                document.getElementById('bg-url').value = b64;
+                applyBackground('url', b64);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- KEYBOARD SHORTCUTS ---
+        function captureShortcut(action) {
+            const input = document.getElementById(`sc-${action}`);
+            input.value = "PRESS KEY...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT") {
+                    shortcuts[action] = key;
+                    input.value = key;
+                    localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    window.removeEventListener('keydown', listener);
+                    input.blur();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function resetShortcuts() {
+            shortcuts = { home: 'H', games: 'G', panic: 'P', custom: [] };
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            syncShortcutUI();
+        }
+
+        function syncShortcutUI() {
+            document.getElementById('sc-home').value = shortcuts.home;
+            document.getElementById('sc-games').value = shortcuts.games;
+            document.getElementById('sc-panic').value = shortcuts.panic;
+            renderCustomShortcuts();
+        }
+
+        // --- CUSTOM KEYBINDS ---
+        function renderCustomShortcuts() {
+            const list = document.getElementById('custom-shortcuts-list');
+            if (!list) return;
+            list.innerHTML = '';
+            const pageNames = { home:'Home', games:'Games', ai:'AI Terminal', proxy:'Proxy', customapps:'Custom Apps', marketplace:'Marketplace', settings:'Settings' };
+            shortcuts.custom.forEach((sc, i) => {
+                const row = document.createElement('div');
+                row.className = 'custom-shortcut-row';
+                row.innerHTML = `
+                    <input type="text" class="shortcut-input" value="${sc.key}" readonly style="width:60px; flex-shrink:0;" onclick="captureCustomShortcutKey(${i})">
+                    <span style="flex:1; font-size:0.85rem; color:var(--text-dim)">→ Alt + ${sc.key} opens <strong style="color:white">${pageNames[sc.action] || sc.action}</strong></span>
+                    <button class="word-del-btn" onclick="deleteCustomShortcut(${i})">✕</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function captureNewShortcutKey() {
+            const input = document.getElementById('new-sc-key');
+            input.value = "...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT" && key !== "META") {
+                    input.value = key;
+                    window.removeEventListener('keydown', listener);
+                    input.blur();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function captureCustomShortcutKey(index) {
+            const rows = document.querySelectorAll('#custom-shortcuts-list .custom-shortcut-row');
+            const input = rows[index]?.querySelector('.shortcut-input');
+            if (!input) return;
+            input.value = "...";
+            const listener = (e) => {
+                e.preventDefault();
+                const key = e.key.toUpperCase();
+                if (key !== "ALT" && key !== "CONTROL" && key !== "SHIFT" && key !== "META") {
+                    shortcuts.custom[index].key = key;
+                    localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    window.removeEventListener('keydown', listener);
+                    renderCustomShortcuts();
+                }
+            };
+            window.addEventListener('keydown', listener);
+        }
+
+        function addCustomShortcut() {
+            const key = document.getElementById('new-sc-key').value.trim();
+            const action = document.getElementById('new-sc-action').value;
+            if (!key || key === '...' || key === 'KEY') return;
+            shortcuts.custom.push({ key, action });
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            document.getElementById('new-sc-key').value = '';
+            renderCustomShortcuts();
+        }
+
+        function deleteCustomShortcut(index) {
+            shortcuts.custom.splice(index, 1);
+            localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+            renderCustomShortcuts();
+        }
+
+        // --- ABOUT:BLANK CLOAK ---
+        function openAboutBlankCloak() {
+            const newTab = window.open('about:blank', '_blank');
+            if (!newTab) { alert('Pop-up blocked! Allow pop-ups for this site.'); return; }
+            const script = `<script>
+(async () => { 
+    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@latest/ghostlinksinglefile.html?v=" + Date.now();
+    const response = await fetch(url); 
+    const html = await response.text(); 
+    document.open(); 
+    document.write(html); 
+    document.close(); 
+})(); 
+<\/script>`;
+            newTab.document.write(script);
+            newTab.document.close();
+        }
+
+        // --- README MODAL ---
+        let readmeLoaded = false;
+        let versionsLoaded = false;
+        let activeReadmeTab = 'readme';
+
+        async function openReadmeModal() {
+            document.getElementById('readme-overlay').style.display = 'flex';
+            if (activeReadmeTab === 'readme' && !readmeLoaded) {
+                await loadReadmeContent();
+            }
+        }
+
+        function closeReadmeModal() {
+            document.getElementById('readme-overlay').style.display = 'none';
+        }
+
+        function switchReadmeTab(tab) {
+            activeReadmeTab = tab;
+            document.getElementById('tab-btn-readme').classList.toggle('active', tab === 'readme');
+            document.getElementById('tab-btn-versions').classList.toggle('active', tab === 'versions');
+            document.getElementById('readme-panel').classList.toggle('active', tab === 'readme');
+            document.getElementById('versions-panel').classList.toggle('active', tab === 'versions');
+
+            if (tab === 'readme' && !readmeLoaded) loadReadmeContent();
+            if (tab === 'versions' && !versionsLoaded) loadVersionsList();
+        }
+
+        async function loadReadmeContent() {
+            const panel = document.getElementById('readme-panel');
+            try {
+                const url = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@master/README.md';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const md = await res.text();
+                panel.innerHTML = parseMarkdown(md);
+                readmeLoaded = true;
+            } catch(e) {
+                panel.innerHTML = `<p style="color:#ff4444">Failed to load README. Check your connection.</p>`;
+            }
+        }
+
+        async function loadVersionsList() {
+            const list = document.getElementById('versions-list');
+            try {
+                const apiUrl = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/commits?path=ghostlinksinglefile.html&per_page=30';
+                const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) throw new Error('API error');
+                const commits = await res.json();
+
+                list.innerHTML = '';
+                commits.forEach(commit => {
+                    const sha = commit.sha;
+                    const shortSha = sha.slice(0, 7);
+                    const msg = commit.commit.message || '';
+                    const nlIdx = msg.indexOf('\n');
+                    const title = (nlIdx > -1 ? msg.slice(0, nlIdx) : msg).trim() || 'Untitled';
+                    const body = nlIdx > -1 ? msg.slice(nlIdx).trim() : '';
+                    const author = commit.commit.author?.name || 'Unknown';
+                    const dateRaw = commit.commit.author?.date || '';
+                    const dateStr = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+                    const item = document.createElement('div');
+                    item.className = 'version-item';
+                    item.innerHTML = `
+                        <div class="version-sha">${shortSha}</div>
+                        <div class="version-info">
+                            <div class="version-title">${title}</div>
+                            <div class="version-meta">${author} · ${dateStr}</div>
+                        </div>
+                        ${body ? `<div class="version-has-body">DETAILS</div>` : ''}
+                    `;
+                    item.onclick = () => showVersionDetail(sha, title, body, author, dateStr, shortSha);
+                    list.appendChild(item);
+                });
+
+                versionsLoaded = true;
+            } catch(e) {
+                list.innerHTML = `<p style="color:#ff4444; font-size:0.85rem;">Failed to load commits. Check your connection.</p>`;
+            }
+        }
+
+        function showVersionDetail(sha, title, body, author, dateStr, shortSha) {
+            document.getElementById('versions-list-view').style.display = 'none';
+            const detail = document.getElementById('versions-detail-view');
+            detail.classList.add('active');
+
+            document.getElementById('vd-title').textContent = title;
+            document.getElementById('vd-meta').innerHTML = `<span>${shortSha}</span> &nbsp;·&nbsp; ${author} &nbsp;·&nbsp; ${dateStr}`;
+            document.getElementById('vd-body').innerHTML = body
+                ? parseMarkdown(body)
+                : `<span class="version-detail-empty">No extended description for this commit.</span>`;
+            document.getElementById('versions-panel').scrollTop = 0;
+        }
+
+        function versionsBackToList() {
+            document.getElementById('versions-list-view').style.display = 'block';
+            document.getElementById('versions-detail-view').classList.remove('active');
+        }
+
+        function parseMarkdown(md) {
+            let html = md
+                // Escape HTML
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                // Fenced code blocks
+                .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // Headers
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                // Bold + italic
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                // Blockquote
+                .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+                // HR
+                .replace(/^---$/gm, '<hr>')
+                // Unordered list items
+                .replace(/^\s*[-*+] (.+)$/gm, '<li>$1</li>')
+                // Ordered list items
+                .replace(/^\s*\d+\. (.+)$/gm, '<li>$1</li>')
+                // Links
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                // Images
+                .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">')
+                // Paragraphs (double newlines)
+                .replace(/\n{2,}/g, '\n\n')
+                .split('\n\n')
+                .map(block => {
+                    block = block.trim();
+                    if (!block) return '';
+                    if (/^<(h[1-6]|pre|blockquote|hr|ul|ol|li)/.test(block)) return block;
+                    // Wrap consecutive <li> items
+                    if (block.includes('<li>')) return `<ul>${block}</ul>`;
+                    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+                })
+                .join('\n');
+            return html;
+        }
+
+        // --- TYPEWRITER WORDS EDITOR ---
+        function saveWords() {
+            localStorage.setItem('ghostlink_words', JSON.stringify(words));
+        }
+
+        function renderWordsEditor() {
+            const list = document.getElementById('word-list');
+            if (!list) return;
+            list.innerHTML = '';
+            words.forEach((w, i) => {
+                const row = document.createElement('div');
+                row.className = 'word-row';
+                row.innerHTML = `
+                    <input type="text" value="${w.replace(/"/g, '&quot;')}" 
+                        oninput="words[${i}] = this.value; saveWords();" 
+                        placeholder="Word ${i + 1}">
+                    <button class="word-del-btn" onclick="deleteTypewriterWord(${i})">✕ REMOVE</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function addTypewriterWord() {
+            const input = document.getElementById('new-word-input');
+            const val = input.value.trim();
+            if (!val) return;
+            words.push(val);
+            saveWords();
+            input.value = '';
+            renderWordsEditor();
+        }
+
+        function deleteTypewriterWord(index) {
+            if (words.length <= 1) return;
+            words.splice(index, 1);
+            saveWords();
+            renderWordsEditor();
+        }
+
+        // --- IMPORT / EXPORT ---
+        function exportData() {
+            const data = {
+                apps: customApps,
+                shortcuts: shortcuts,
+                config: JSON.parse(localStorage.getItem('ghostlink_config')),
+                navOrder: navOrder,
+                words: words
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ghostlink_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.apps) {
+                        customApps = data.apps;
+                        localStorage.setItem('ghostlink_apps', JSON.stringify(customApps));
+                    }
+                    if (data.shortcuts) {
+                        shortcuts = data.shortcuts;
+                        localStorage.setItem('ghostlink_shortcuts', JSON.stringify(shortcuts));
+                    }
+                    if (data.config) {
+                        localStorage.setItem('ghostlink_config', JSON.stringify(data.config));
+                    }
+                    if (data.navOrder) {
+                        navOrder = data.navOrder;
+                        localStorage.setItem('ghostlink_nav_order', JSON.stringify(navOrder));
+                    }
+                    if (data.words && Array.isArray(data.words) && data.words.length > 0) {
+                        words = data.words;
+                        localStorage.setItem('ghostlink_words', JSON.stringify(words));
+                    }
+                    alert("Import successful! Reloading...");
+                    location.reload();
+                } catch (err) {
+                    alert("Invalid config file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- SETTINGS & CLOAKING ---
+        function usePreset(index) {
+            const p = tabPresets[index];
+            document.getElementById('cloak-title').value = p.title;
+            document.getElementById('cloak-icon').value = p.icon;
+            applyCloak();
+        }
+
+        function applyCloak() {
+            const title = document.getElementById('cloak-title').value;
+            const icon = document.getElementById('cloak-icon').value;
+            if (title) document.title = title;
+            // Remove all existing favicon links to force the browser to refresh <--- this is ai's best attempt to fix why it doesnt apply on my chromebook and I can't figure it out 💀
+            document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
+            if (icon) {
+                const link = document.createElement('link');
+                link.rel = 'shortcut icon';
+                link.type = 'image/x-icon';
+                link.href = icon;
+                document.head.appendChild(link);
+            }
+            saveConfig();
+        }
+
+        function applyTheme() {
+            const color = document.getElementById('theme-color').value;
+            const fontSelectVal = document.getElementById('font-select').value;
+            const customFontFamily = document.getElementById('font-custom-family')?.value.trim();
+            const fontToApply = customFontFamily || fontSelectVal;
+            document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--accent-glow', color + '4D');
+            document.documentElement.style.setProperty('--font', fontToApply);
+            // Keep color picker in sync with text input
+            try { document.getElementById('theme-picker').value = color; } catch(e) {}
+            applyTextColors();
+            saveConfig();
+        }
+
+        function applyTextColors() {
+            const primary = document.getElementById('text-primary-picker')?.value || '#ffffff';
+            const dim = document.getElementById('text-dim-picker')?.value || '#94a3b8';
+            document.documentElement.style.setProperty('--text-primary', primary);
+            document.documentElement.style.setProperty('--text-dim', dim);
+            saveConfig();
+        }
+
+        function syncColor(val) { document.getElementById('theme-color').value = val; applyTheme(); }
+        
+        function saveConfig() {
+            localStorage.setItem('ghostlink_config', JSON.stringify({
+                title: document.getElementById('cloak-title').value,
+                icon: document.getElementById('cloak-icon').value,
+                color: document.getElementById('theme-color').value,
+                bgColor: document.getElementById('bg-picker').value,
+                bgUrl: document.getElementById('bg-url').value,
+                bgBlur: document.getElementById('bg-blur-input').value,
+                bgBright: document.getElementById('bg-bright-input').value,
+                font: document.getElementById('font-select').value,
+                fontUrl: document.getElementById('font-url-input')?.value || '',
+                fontCustomFamily: document.getElementById('font-custom-family')?.value || '',
+                initTarget: document.getElementById('init-target-select')?.value || 'games',
+                clockFormat: document.getElementById('clock-format-select')?.value || '24h-s',
+                dateFormat: document.getElementById('date-format-select')?.value || 'full',
+                textPrimary: document.getElementById('text-primary-picker')?.value || '#ffffff',
+                textDim: document.getElementById('text-dim-picker')?.value || '#94a3b8'
+            }));
+        }
+
+        function clearBackground() {
+            document.getElementById('bg-url').value = '';
+            applyBackground('url', '');
+        }
+
+        function loadCustomFont(silentLoad) {
+            const url = document.getElementById('font-url-input').value.trim();
+            const familyInput = document.getElementById('font-custom-family');
+            if (!url) return;
+
+            // Remove existing custom font stylesheet
+            document.getElementById('custom-font-link')?.remove();
+            const link = document.createElement('link');
+            link.id = 'custom-font-link';
+            link.rel = 'stylesheet';
+            link.href = url;
+            document.head.appendChild(link);
+
+            // Auto-detect font family name from Google Fonts URL if not provided
+            if (!familyInput.value.trim()) {
+                const match = url.match(/[?&]family=([^&:]+)/);
+                if (match) {
+                    const detected = decodeURIComponent(match[1].replace(/\+/g, ' ').split(':')[0]);
+                    familyInput.value = detected;
+                }
+            }
+
+            applyTheme();
+            if (!silentLoad) saveConfig();
+        }
+
+        function resetSettings() { 
+            if(confirm("Factory reset will wipe all apps and settings. Continue?")) {
+                localStorage.clear(); 
+                location.reload(); 
+            }
+        }
+
+        // --- UTILS ---
+        function updateClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('home-clock');
+            const dateEl = document.getElementById('home-date');
+            const clockFmt = document.getElementById('clock-format-select')?.value || '24h-s';
+            const dateFmt = document.getElementById('date-format-select')?.value || 'full';
+
+            if (clockEl) {
+                let timeStr;
+                if (clockFmt === '24h-s') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else if (clockFmt === '24h') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                } else if (clockFmt === '12h-s') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else if (clockFmt === '12h') {
+                    timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+                } else if (clockFmt === 'off') {
+                    timeStr = '';
+                }
+                clockEl.textContent = timeStr;
+                clockEl.style.display = clockFmt === 'off' ? 'none' : '';
+            }
+
+            if (dateEl) {
+                let dateStr;
+                if (dateFmt === 'full') {
+                    dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+                } else if (dateFmt === 'short') {
+                    dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+                } else if (dateFmt === 'numeric') {
+                    dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                } else if (dateFmt === 'iso') {
+                    dateStr = now.toISOString().slice(0, 10);
+                } else if (dateFmt === 'off') {
+                    dateStr = '';
+                }
+                dateEl.textContent = dateStr;
+                dateEl.style.display = dateFmt === 'off' ? 'none' : '';
+            }
+        }
+
+        let wordIdx = 0, charIdx = 0, isDeleting = false;
+        function type() {
+            const target = document.getElementById("typewriter");
+            if(!target) return;
+            const currentWords = words.length > 0 ? words : DEFAULT_WORDS;
+            wordIdx = wordIdx % currentWords.length;
+            const currentWord = currentWords[wordIdx];
+            target.textContent = currentWord.substring(0, charIdx);
+            if (isDeleting) charIdx--; else charIdx++;
+            let typeSpeed = isDeleting ? 50 : 120;
+            if (!isDeleting && charIdx > currentWord.length) { isDeleting = true; typeSpeed = 2000; } 
+            else if (isDeleting && charIdx < 0) { isDeleting = false; wordIdx = (wordIdx + 1) % currentWords.length; charIdx = 0; typeSpeed = 500; }
+            setTimeout(type, typeSpeed);
+        }
+
+        window.onload = () => {
+            const presetList = document.getElementById('preset-list');
+            tabPresets.forEach((p, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'preset-btn'; btn.innerText = p.name;
+                btn.onclick = () => usePreset(i);
+                presetList.appendChild(btn);
+            });
+
+            const iconLib = document.getElementById('icon-library');
+            svgLibrary.forEach((svg) => {
+                const opt = document.createElement('div');
+                opt.className = 'icon-opt'; opt.innerHTML = svg;
+                opt.onclick = () => {
+                    document.querySelectorAll('.icon-opt').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    document.getElementById('new-app-svg').value = svg;
+                };
+                iconLib.appendChild(opt);
+            });
+
+            const saved = JSON.parse(localStorage.getItem('ghostlink_config'));
+            if (saved) {
+                document.getElementById('cloak-title').value = saved.title || "";
+                document.getElementById('cloak-icon').value = saved.icon || "";
+                document.getElementById('theme-color').value = saved.color || "#6ecbff";
+                document.getElementById('theme-picker').value = saved.color || "#6ecbff";
+                document.getElementById('bg-picker').value = saved.bgColor || "#000000";
+                document.getElementById('bg-url').value = saved.bgUrl || "";
+                document.getElementById('bg-blur-input').value = saved.bgBlur || "0";
+                document.getElementById('bg-bright-input').value = saved.bgBright || "100";
+                document.getElementById('font-select').value = saved.font || "'Courier New', monospace";
+                if (saved.fontUrl) {
+                    document.getElementById('font-url-input').value = saved.fontUrl;
+                    loadCustomFont(true);
+                }
+                if (saved.fontCustomFamily) {
+                    document.getElementById('font-custom-family').value = saved.fontCustomFamily;
+                }
+                if (saved.initTarget) document.getElementById('init-target-select').value = saved.initTarget;
+                if (saved.clockFormat) document.getElementById('clock-format-select').value = saved.clockFormat;
+                if (saved.dateFormat) document.getElementById('date-format-select').value = saved.dateFormat;
+
+                // Restore text colors
+                if (saved.textPrimary) document.getElementById('text-primary-picker').value = saved.textPrimary;
+                if (saved.textDim) document.getElementById('text-dim-picker').value = saved.textDim;
+                applyTextColors();
+                
+                applyCloak(); 
+                applyTheme();
+                applyBackground('color', saved.bgColor || "#000000");
+                if (saved.bgUrl) applyBackground('url', saved.bgUrl);
+                applyBackground('blur', saved.bgBlur || "0");
+                applyBackground('brightness', saved.bgBright || "100");
+            } else {
+                applyBackground('color', '#000000');
+            }
+
+            syncShortcutUI();
+
+            window.addEventListener('keydown', (e) => {
+                if (e.altKey) {
+                    const key = e.key.toUpperCase();
+                    if (key === shortcuts.home) nav('home');
+                    if (key === shortcuts.games) nav('games');
+                    if (key === shortcuts.panic) usePreset(tabPresets.length - 1); 
+                    // Custom shortcuts
+                    shortcuts.custom.forEach(sc => {
+                        if (key === sc.key) nav(sc.action);
+                    });
+                }
+            });
+
+            let lastFrameTime = performance.now();
+            function updateFPS() {
+                const now = performance.now();
+                const fpsEl = document.getElementById('fps');
+                if(fpsEl) fpsEl.textContent = Math.round(1000 / (now - lastFrameTime));
+                lastFrameTime = now;
+                requestAnimationFrame(updateFPS);
+            }
+
+            updateSidebar(); 
+            type(); 
+            updateFPS(); 
+            updateClock();
+            
+            nav('home');
+
+            setInterval(updateClock, 1000);
+            if (navigator.getBattery) {
+                navigator.getBattery().then(bat => {
+                    const updateBat = () => {
+                        const lvl = Math.round(bat.level * 100);
+                        const fill = document.getElementById('bat-fill');
+                        const text = document.getElementById('bat-text');
+                        if(fill) fill.style.width = lvl + '%';
+                        if(text) text.textContent = lvl + '%';
+                    };
+                    bat.addEventListener('levelchange', updateBat); updateBat();
+                });
+            }
+            initTotalVisits();
+            initOnlineUsers();
+            checkForUpdates();
+        };
+
+        function sendThemeToIframe() {
+            const iframe = document.getElementById('app-frame');
+            if (!iframe || !iframe.contentWindow) return;
+
+            // Get live values from CSS variables
+            const styles = getComputedStyle(document.documentElement);
+            const theme = {
+                accent: styles.getPropertyValue('--accent').trim(),
+                bg: styles.getPropertyValue('--bg').trim(),
+                font: styles.getPropertyValue('--font').trim()
+            };
+
+            iframe.contentWindow.postMessage({
+                type: 'GHOSTLINK_THEME_DATA',
+                theme: theme
+            }, '*');
+        }
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'GHOSTLINK_QUERY_THEME') {
+                sendThemeToIframe();
+            }
+        });
+
+        // --- UPDATE CHECKER ---
+        async function checkForUpdates() {
+            try {
+                const apiUrl = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/commits?path=ghostlinksinglefile.html&page=1&per_page=1';
+                const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) return;
+                const commits = await res.json();
+                if (!commits || !commits.length) return;
+
+                const latest = commits[0];
+                const latestSha = latest.sha;
+                const seenSha = localStorage.getItem('ghostlink_seen_commit');
+
+                if (seenSha === latestSha) return; // already seen this commit
+
+                // Parse commit message: first line = title, rest = body
+                const fullMessage = latest.commit.message || '';
+                const nlIdx = fullMessage.indexOf('\n');
+                const title = nlIdx > -1 ? fullMessage.slice(0, nlIdx).trim() : fullMessage.trim();
+                const body = nlIdx > -1 ? fullMessage.slice(nlIdx).trim() : '';
+
+                const authorName = latest.commit.author?.name || 'Unknown';
+                const dateRaw = latest.commit.author?.date || '';
+                const dateFormatted = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                const shortSha = latestSha.slice(0, 7);
+
+                // Populate and show modal
+                document.getElementById('update-title').textContent = title || 'Untitled update';
+                document.getElementById('update-body').innerHTML = body
+                    ? parseMarkdown(body)
+                    : '<p style="color:var(--text-dim); font-style:italic;">No extended description provided.</p>';
+                document.getElementById('update-meta').innerHTML =
+                    `<span>${shortSha}</span> &nbsp;·&nbsp; ${authorName} &nbsp;·&nbsp; ${dateFormatted}`;
+
+                // Store sha on the modal element so dismissUpdate can access it
+                document.getElementById('update-overlay').dataset.sha = latestSha;
+                document.getElementById('update-overlay').style.display = 'flex';
+
+            } catch (e) {
+                console.warn('Update check failed:', e);
+            }
+        }
+
+        function dismissUpdate() {
+            const overlay = document.getElementById('update-overlay');
+            const sha = overlay.dataset.sha;
+            if (sha) localStorage.setItem('ghostlink_seen_commit', sha);
+            overlay.style.display = 'none';
+        }
+        //added ts so i can count the update you hoes will never catch meeeeeeeeeeeeeeeeeeeeeeeeeee
+    </script>
+</body>
+</html>
