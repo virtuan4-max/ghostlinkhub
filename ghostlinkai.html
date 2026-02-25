@@ -51,7 +51,7 @@
             text-shadow: 0 0 10px var(--accent-color);
             color: var(--accent-color); transition: transform 0.2s;
         }
-        .menu-icon:hover { transform: rotate(45deg); }
+        .menu-icon:hover { opacity: 0.75; }
 
         .icon-btn {
             width: 24px; height: 24px; cursor: pointer;
@@ -211,9 +211,12 @@
             flex-grow: 1; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
         body.chat-active .center-wrapper {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 500;
             flex-grow: 0; height: 70px; flex-direction: row; justify-content: center;
             padding: 0; border-bottom: 1px solid rgba(110,203,255,0.1);
+            background: var(--bg-dark);
         }
+        body.chat-active #response-viewport { padding-top: 70px; }
         .pulse-star {
             font-size: 60px; text-shadow: 0 0 15px var(--accent-color);
             color: var(--accent-color); display: inline-block; cursor: pointer;
@@ -736,7 +739,7 @@ async function fetchAllCloudKeys() {
     } else {
         cloudKeyIndex = Math.floor(Math.random() * cloudKeys.length);
         setKeyStatus('cloud');
-        updateCloudKeyCount(`${cloudKeys.length} key${cloudKeys.length > 1 ? 's' : ''} loaded — rotating every message`);
+        updateCloudKeyCount(`${cloudKeys.length} key${cloudKeys.length > 1 ? 's' : ''} loaded — using #${cloudKeyIndex + 1}`);
         updateSessionStats();
     }
 }
@@ -871,7 +874,6 @@ async function sendMessage() {
     if (wordCount > 1000) { alert(`Message too long (${wordCount} words). Limit: 1000.`); return; }
 
     if (isFirstMessage && !activeSessionId) createSession(textVal);
-    if (!useCustomKey) advanceCloudKey();
 
     setUIState(true);
     abortController = new AbortController();
