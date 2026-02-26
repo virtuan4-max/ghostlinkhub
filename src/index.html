@@ -16,9 +16,7 @@
             const bg = styles.getPropertyValue('--bg').trim();
             const font = styles.getPropertyValue('--font').trim();
 
-            // Helper to inject a "Pre-load" script into HTML strings
             const injectThemeScript = (html) => {
-                // Get live values
                 const styles = getComputedStyle(document.documentElement);
                 const accent = styles.getPropertyValue('--accent').trim();
                 const bg = styles.getPropertyValue('--bg').trim();
@@ -36,7 +34,6 @@
                 return html.includes('<head>') ? html.replace('<head>', '<head>' + themeScript) : themeScript + html;
             };
 
-            // Logic for data URIs or raw HTML
             if (targetUrl.startsWith('data:text/html') || targetUrl.trim().startsWith('<')) {
                 frame.removeAttribute('src');
                 let rawHtml = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
@@ -61,19 +58,16 @@
                     })
                     .then(htmlContent => {
                         frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-                        // INJECT THEME INTO FETCHED CONTENT BEFORE SETTING SRCDOC
                         frame.srcdoc = injectThemeScript(htmlContent);
                     })
                     .catch(err => {
                         console.warn('Raw fetch failed, falling back to direct src load.');
                         frame.removeAttribute('srcdoc');
-                        // Fallback to URL params
                         frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
                     });
             } else {
                 frame.removeAttribute('srcdoc');
                 if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
-                // Append theme to URL for external loads
                 frame.src = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}accent=${encodeURIComponent(accent)}&bg=${encodeURIComponent(bg)}`;
             }
         }
@@ -1005,8 +999,7 @@
                     <label>Presets</label>
                     <div class="preset-container" id="preset-list"></div>
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-                        <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px;">Open GhostLink disguised inside an <code style="color:var(--accent); background:rgba(255,255,255,0.07); padding:1px 5px; border-radius:4px;">about:blank</code> tab for maximum stealth.</p>
-                        <button class="btn-start" onclick="openAboutBlankCloak()" style="margin-top:0; width:100%;">OPEN IN ABOUT:BLANK</button>
+                    <button class="btn-start" onclick="openAboutBlankCloak()" style="margin-top:0; width:100%;">OPEN IN ABOUT:BLANK</button>
                     </div>
                 </div>
 
@@ -1170,8 +1163,79 @@
                         <button class="btn-start" style="background:#ef4444; color:white; margin-top:20px;" onclick="resetSettings()">FACTORY RESET</button>
                     </div>
                 </div>
+
+                <!-- REPO FILE EXPLORER CARD -->
+                <div class="settings-card">
+                    <h3>Repository Files</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">Browse and download files from the GhostLink GitHub repository, or download the jsdelivr launcher directly.</p>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <button class="btn-start" onclick="openRepoModal()" style="margin-top:0; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            BROWSE FILES
+                        </button>
+                        <button class="btn-start" onclick="downloadJsdelivrHtml()" style="margin-top:0; background:#333; color:white; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            DOWNLOAD JSDELIVR.HTML
+                        </button>
+                        <button class="btn-start" onclick="openYhsModal()" style="margin-top:0; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            BROWSE YHS FILES
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </section>
+
+        <!-- REPO FILE EXPLORER MODAL -->
+        <div id="repo-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); backdrop-filter:blur(12px); z-index:9500; align-items:center; justify-content:center;" onclick="if(event.target===this)closeRepoModal()">
+            <div style="background:var(--card-bg); border:1px solid var(--accent); border-radius:16px; width:92%; max-width:720px; max-height:84vh; display:flex; flex-direction:column; box-shadow:0 0 40px var(--accent-glow);">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-shrink:0; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span style="font-weight:bold; color:var(--text-primary); font-size:0.95rem;">Repository Files</span>
+                        <div id="repo-breadcrumb" style="font-size:0.72rem; color:var(--text-dim); display:flex; align-items:center; gap:3px; flex-wrap:wrap; flex:1; min-width:0;"></div>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-shrink:0;">
+                        <button class="btn-small" onclick="loadRepoDir('')" style="font-size:0.7rem; padding:5px 10px;">ROOT</button>
+                        <button class="readme-close" onclick="closeRepoModal()">✕</button>
+                    </div>
+                </div>
+                <div id="repo-file-list" style="overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:5px; flex:1;">
+                    <div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:30px;">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- YHS FILES MODAL -->
+        <div id="yhs-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); backdrop-filter:blur(12px); z-index:9500; align-items:center; justify-content:center;" onclick="if(event.target===this)closeYhsModal()">
+            <div style="background:var(--card-bg); border:1px solid var(--accent); border-radius:16px; width:92%; max-width:860px; max-height:84vh; display:flex; flex-direction:column; box-shadow:0 0 40px var(--accent-glow);">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-shrink:0;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span style="font-weight:bold; color:var(--text-primary); font-size:0.95rem;">YHS Files</span>
+                        <span id="yhs-file-count" style="font-size:0.72rem; color:var(--text-dim);"></span>
+                    </div>
+                    <button class="readme-close" onclick="closeYhsModal()">✕</button>
+                </div>
+                <div id="yhs-file-list" style="overflow-y:auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px; flex:1;">
+                    <div style="color:var(--text-dim); font-size:0.82rem; grid-column:1/-1; text-align:center; padding:40px;">Loading YHS files...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IMAGE LIGHTBOX OVERLAY -->
+        <div id="yhs-lightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:10000; align-items:center; justify-content:center; flex-direction:column;" onclick="if(event.target===this||event.target.id==='yhs-lightbox')closeYhsLightbox()">
+            <div style="position:relative; max-width:92vw; max-height:90vh; display:flex; flex-direction:column; align-items:center;">
+                <button onclick="closeYhsLightbox()" style="position:absolute; top:-40px; right:0; background:transparent; border:1px solid var(--border); color:var(--text-dim); border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✕</button>
+                <img id="yhs-lightbox-img" src="" style="max-width:100%; max-height:78vh; border-radius:10px; box-shadow:0 0 40px var(--accent-glow);" alt="">
+                <div id="yhs-lightbox-name" style="margin-top:12px; font-size:0.8rem; color:var(--text-dim);"></div>
+                <button id="yhs-lightbox-dl" onclick="" style="margin-top:10px; display:flex; align-items:center; gap:6px;" class="btn-small run">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    DOWNLOAD
+                </button>
+            </div>
+        </div>
 
         <iframe id="app-frame" onload="sendThemeToIframe()"></iframe>
     </main>
@@ -1288,8 +1352,8 @@
         // --- SYSTEM PAGE DATA ---
         const systemPages = [
             { id: 'home', name: 'Home', svg: `<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
-            { id: 'games', name: 'Games', svg: `<svg viewBox="0 0 24 24"><rect x="2" width="20" height="12" rx="2"/><path d="M6 12v4"/><path d="M10 12v4"/><path d="M14 12v4"/><path d="M18 12v4"/></svg>` },
-            { id: 'ai', name: 'AI Terminal', svg: `<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>` },
+            { id: 'games', name: 'Games', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 7C4 7 2 8.5 2 11c0 2 .5 3.8 1.5 5.2C4.4 17.5 5.3 18 6.2 18c.7 0 1.3-.3 2.1-.8l.8-.6C9.7 16.2 10.8 16 12 16s2.3.2 2.9.6l.8.6c.8.5 1.4.8 2.1.8.9 0 1.8-.5 2.7-1.8C21.5 14.8 22 13 22 11c0-2.5-2-4-3.5-4H5.5z"/><path d="M8.5 7V5.5A.5.5 0 0 1 9 5h6a.5.5 0 0 1 .5.5V7"/><line x1="7" y1="10.5" x2="7" y2="13.5"/><line x1="5.5" y1="12" x2="8.5" y2="12"/><circle cx="15.5" cy="10.5" r=".75" fill="currentColor"/><circle cx="17.5" cy="12.5" r=".75" fill="currentColor"/></svg>` },
+            { id: 'ai', name: 'AI Terminal', svg: `<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>` },
             { id: 'proxy', name: 'Proxy', svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>` },
             { id: 'customapps', name: 'Custom Apps', svg: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 14h7v7H3z"/></svg>` },
             { id: 'marketplace', name: 'Marketplace', svg: `<svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>` },
@@ -1382,8 +1446,8 @@
             } else if (page === 'run_custom' && appData) {
                 loadIntoFrame(appData.content);
             } else if (['ai', 'games', 'proxy'].includes(page)) {
-                const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/';
-                const fileMap = { 'ai': 'ghostlinkai.html', 'games': 'ghostlinkgames.html', 'proxy': 'proxy.html' };
+                const baseUrl = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/src/';
+                const fileMap = { 'ai': 'ai.html', 'games': 'games.html', 'proxy': 'proxy.html' };
                 sendThemeToIframe();
                 loadIntoFrame(`${baseUrl}${fileMap[page]}?v=${new Date().getTime()}`);
                 sendThemeToIframe();
@@ -1845,7 +1909,7 @@
             if (!newTab) { alert('Pop-up blocked! Allow pop-ups for this site.'); return; }
             const script = `<script>
 (async () => { 
-    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@latest/ghostlinksinglefile.html?v=" + Date.now();
+    const url = "https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/ghostlinksinglefile.html?v=" + Date.now();
     const response = await fetch(url); 
     const html = await response.text(); 
     document.open(); 
@@ -1958,40 +2022,27 @@
 
         function parseMarkdown(md) {
             let html = md
-                // Escape HTML
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                // Fenced code blocks
                 .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
-                // Inline code
                 .replace(/`([^`]+)`/g, '<code>$1</code>')
-                // Headers
                 .replace(/^### (.+)$/gm, '<h3>$1</h3>')
                 .replace(/^## (.+)$/gm, '<h2>$1</h2>')
                 .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-                // Bold + italic
                 .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                // Blockquote
                 .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
-                // HR
                 .replace(/^---$/gm, '<hr>')
-                // Unordered list items
                 .replace(/^\s*[-*+] (.+)$/gm, '<li>$1</li>')
-                // Ordered list items
                 .replace(/^\s*\d+\. (.+)$/gm, '<li>$1</li>')
-                // Links
                 .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-                // Images
                 .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">')
-                // Paragraphs (double newlines)
                 .replace(/\n{2,}/g, '\n\n')
                 .split('\n\n')
                 .map(block => {
                     block = block.trim();
                     if (!block) return '';
                     if (/^<(h[1-6]|pre|blockquote|hr|ul|ol|li)/.test(block)) return block;
-                    // Wrap consecutive <li> items
                     if (block.includes('<li>')) return `<ul>${block}</ul>`;
                     return `<p>${block.replace(/\n/g, '<br>')}</p>`;
                 })
@@ -2102,7 +2153,7 @@
             const title = document.getElementById('cloak-title').value;
             const icon = document.getElementById('cloak-icon').value;
             if (title) document.title = title;
-            // Remove all existing favicon links to force the browser to refresh <--- this is ai's best attempt to fix why it doesnt apply on my chromebook and I can't figure it out 💀
+            // Remove all existing favicon links to force the browser to refresh <--- this is ai's best attempt to fix why it doesnt apply on my chromebook and I can't figure it out cuz it works on my pc lol💀
             document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
             if (icon) {
                 const link = document.createElement('link');
@@ -2122,7 +2173,6 @@
             document.documentElement.style.setProperty('--accent', color);
             document.documentElement.style.setProperty('--accent-glow', color + '4D');
             document.documentElement.style.setProperty('--font', fontToApply);
-            // Keep color picker in sync with text input
             try { document.getElementById('theme-picker').value = color; } catch(e) {}
             applyTextColors();
             saveConfig();
@@ -2168,7 +2218,6 @@
             const familyInput = document.getElementById('font-custom-family');
             if (!url) return;
 
-            // Remove existing custom font stylesheet
             document.getElementById('custom-font-link')?.remove();
             const link = document.createElement('link');
             link.id = 'custom-font-link';
@@ -2176,7 +2225,6 @@
             link.href = url;
             document.head.appendChild(link);
 
-            // Auto-detect font family name from Google Fonts URL if not provided
             if (!familyInput.value.trim()) {
                 const match = url.match(/[?&]family=([^&:]+)/);
                 if (match) {
@@ -2320,7 +2368,6 @@
                     if (key === shortcuts.home) nav('home');
                     if (key === shortcuts.games) nav('games');
                     if (key === shortcuts.panic) usePreset(tabPresets.length - 1); 
-                    // Custom shortcuts
                     shortcuts.custom.forEach(sc => {
                         if (key === sc.key) nav(sc.action);
                     });
@@ -2397,9 +2444,8 @@
                 const latestSha = latest.sha;
                 const seenSha = localStorage.getItem('ghostlink_seen_commit');
 
-                if (seenSha === latestSha) return; // already seen this commit
+                if (seenSha === latestSha) return; 
 
-                // Parse commit message: first line = title, rest = body
                 const fullMessage = latest.commit.message || '';
                 const nlIdx = fullMessage.indexOf('\n');
                 const title = nlIdx > -1 ? fullMessage.slice(0, nlIdx).trim() : fullMessage.trim();
@@ -2410,7 +2456,6 @@
                 const dateFormatted = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
                 const shortSha = latestSha.slice(0, 7);
 
-                // Populate and show modal
                 document.getElementById('update-title').textContent = title || 'Untitled update';
                 document.getElementById('update-body').innerHTML = body
                     ? parseMarkdown(body)
@@ -2418,7 +2463,6 @@
                 document.getElementById('update-meta').innerHTML =
                     `<span>${shortSha}</span> &nbsp;·&nbsp; ${authorName} &nbsp;·&nbsp; ${dateFormatted}`;
 
-                // Store sha on the modal element so dismissUpdate can access it
                 document.getElementById('update-overlay').dataset.sha = latestSha;
                 document.getElementById('update-overlay').style.display = 'flex';
 
@@ -2434,6 +2478,278 @@
             overlay.style.display = 'none';
         }
         //added ts so i can count the update you hoes will never catch meeeeeeeeeeeeeeeeeeeeeeeeeee
+
+
+
+        const REPO_API_BASE = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/contents/';
+        const JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/';
+        const FOLDER_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+        const FILE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+        const DL_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+        let repoPathStack = [];
+        async function downloadJsdelivrHtml() {
+            try {
+                const url = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/assets/jsdelivr.html';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('fetch failed');
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'jsdelivr.html';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            } catch(e) {
+                alert('Download failed: ' + e.message);
+            }
+        }
+        async function loadRepoDir(path) {
+            const listEl = document.getElementById('repo-file-list');
+            listEl.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:20px;">Loading...</div>`;
+
+            if (path === '') {
+                repoPathStack = [];
+            } else {
+                const idx = repoPathStack.indexOf(path);
+                if (idx === -1) repoPathStack.push(path);
+                else repoPathStack = repoPathStack.slice(0, idx + 1);
+            }
+            renderRepoBreadcrumb();
+
+            try {
+                const res = await fetch(REPO_API_BASE + path, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) throw new Error('GitHub API error');
+                const items = await res.json();
+                if (!Array.isArray(items)) throw new Error('Not a directory');
+                items.sort((a, b) => {
+                    if (a.type === b.type) return a.name.localeCompare(b.name);
+                    return a.type === 'dir' ? -1 : 1;
+                });
+
+                listEl.innerHTML = '';
+
+                if (repoPathStack.length > 0) {
+                    const backRow = document.createElement('div');
+                    backRow.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:var(--text-dim); font-size:0.82rem; transition:0.15s;';
+                    backRow.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> ../ (back)`;
+                    backRow.onmouseenter = () => backRow.style.background = 'rgba(255,255,255,0.05)';
+                    backRow.onmouseleave = () => backRow.style.background = 'transparent';
+                    const parentPath = repoPathStack.slice(0, -1).join('/');
+                    backRow.onclick = () => {
+                        repoPathStack.pop();
+                        loadRepoDirExact(parentPath);
+                    };
+                    listEl.appendChild(backRow);
+                }
+
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; transition:0.15s;';
+                    row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.05)';
+                    row.onmouseleave = () => row.style.background = 'transparent';
+
+                    if (item.type === 'dir') {
+                        row.innerHTML = `<span style="color:var(--accent); flex-shrink:0;">${FOLDER_SVG}</span><span style="flex:1; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span><span style="font-size:0.7rem; color:var(--text-dim); flex-shrink:0;">DIR</span>`;
+                        row.onclick = () => loadRepoDir(item.path);
+                    } else {
+                        const size = item.size ? (item.size > 1024 ? (item.size/1024).toFixed(1)+'KB' : item.size+'B') : '';
+                        row.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">${FILE_SVG}</span><span style="flex:1; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span><span style="font-size:0.7rem; color:var(--text-dim); flex-shrink:0; margin-right:8px;">${size}</span><button class="btn-small run" style="padding:4px 8px; font-size:0.68rem; display:flex; align-items:center; gap:4px; flex-shrink:0;" onclick="event.stopPropagation(); downloadRepoFile('${item.path}', '${item.name}')">${DL_SVG} DL</button>`;
+                        row.onclick = () => {};
+                    }
+                    listEl.appendChild(row);
+                });
+
+                if (items.length === 0) {
+                    listEl.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:20px;">Empty directory.</div>`;
+                }
+            } catch(e) {
+                listEl.innerHTML = `<div style="color:#ff4444; font-size:0.82rem; text-align:center; padding:20px;">Error: ${e.message}</div>`;
+            }
+        }
+
+        async function loadRepoDirExact(path) {
+            const listEl = document.getElementById('repo-file-list');
+            listEl.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:20px;">Loading...</div>`;
+            renderRepoBreadcrumb();
+            try {
+                const res = await fetch(REPO_API_BASE + path, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) throw new Error('GitHub API error');
+                const items = await res.json();
+                if (!Array.isArray(items)) throw new Error('Not a directory');
+                items.sort((a, b) => { if (a.type === b.type) return a.name.localeCompare(b.name); return a.type === 'dir' ? -1 : 1; });
+                listEl.innerHTML = '';
+                if (repoPathStack.length > 0) {
+                    const backRow = document.createElement('div');
+                    backRow.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:var(--text-dim); font-size:0.82rem; transition:0.15s;';
+                    backRow.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> ../ (back)`;
+                    backRow.onmouseenter = () => backRow.style.background = 'rgba(255,255,255,0.05)';
+                    backRow.onmouseleave = () => backRow.style.background = 'transparent';
+                    const parentPath = repoPathStack.slice(0, -1).join('/');
+                    backRow.onclick = () => { repoPathStack.pop(); loadRepoDirExact(parentPath); };
+                    listEl.appendChild(backRow);
+                }
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; transition:0.15s;';
+                    row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.05)';
+                    row.onmouseleave = () => row.style.background = 'transparent';
+                    if (item.type === 'dir') {
+                        row.innerHTML = `<span style="color:var(--accent); flex-shrink:0;">${FOLDER_SVG}</span><span style="flex:1; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span><span style="font-size:0.7rem; color:var(--text-dim); flex-shrink:0;">DIR</span>`;
+                        row.onclick = () => { repoPathStack.push(item.path); loadRepoDirExact(item.path); };
+                    } else {
+                        const size = item.size ? (item.size > 1024 ? (item.size/1024).toFixed(1)+'KB' : item.size+'B') : '';
+                        row.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">${FILE_SVG}</span><span style="flex:1; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span><span style="font-size:0.7rem; color:var(--text-dim); flex-shrink:0; margin-right:8px;">${size}</span><button class="btn-small run" style="padding:4px 8px; font-size:0.68rem; display:flex; align-items:center; gap:4px; flex-shrink:0;" onclick="event.stopPropagation(); downloadRepoFile('${item.path}', '${item.name}')">${DL_SVG} DL</button>`;
+                        row.onclick = () => {};
+                    }
+                    listEl.appendChild(row);
+                });
+                if (items.length === 0) listEl.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:20px;">Empty directory.</div>`;
+            } catch(e) {
+                listEl.innerHTML = `<div style="color:#ff4444; font-size:0.82rem; text-align:center; padding:20px;">Error: ${e.message}</div>`;
+            }
+        }
+
+        function renderRepoBreadcrumb() {
+            const bc = document.getElementById('repo-breadcrumb');
+            if (!bc) return;
+            bc.innerHTML = '';
+            const root = document.createElement('span');
+            root.style.cssText = 'cursor:pointer; color:var(--accent); font-size:0.73rem;';
+            root.textContent = 'root';
+            root.onclick = () => { repoPathStack = []; loadRepoDirExact(''); };
+            bc.appendChild(root);
+            repoPathStack.forEach((seg, i) => {
+                const sep = document.createElement('span');
+                sep.textContent = ' / ';
+                sep.style.color = 'var(--text-dim)';
+                bc.appendChild(sep);
+                const part = document.createElement('span');
+                part.style.cssText = 'cursor:pointer; color:' + (i === repoPathStack.length-1 ? 'var(--text-primary)' : 'var(--accent)') + '; font-size:0.73rem;';
+                part.textContent = seg.split('/').pop();
+                const targetPath = repoPathStack.slice(0, i + 1).join('/');
+                part.onclick = () => { repoPathStack = repoPathStack.slice(0, i + 1); loadRepoDirExact(targetPath); };
+                bc.appendChild(part);
+            });
+        }
+
+        async function downloadRepoFile(path, filename) {
+            try {
+                const url = JSDELIVR_BASE + path;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('fetch failed');
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            } catch(e) {
+                alert('Download failed: ' + e.message);
+            }
+        }
+        async function loadYhsFiles() {
+            const listEl = document.getElementById('yhs-file-list');
+            if (!listEl) return;
+            try {
+                const res = await fetch(REPO_API_BASE + 'assets/YHS%20files', { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!res.ok) throw new Error('GitHub API error ' + res.status);
+                const items = await res.json();
+                if (!Array.isArray(items)) throw new Error('Invalid response');
+                listEl.innerHTML = '';
+
+                const imgExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','tiff','avif'];
+
+                items.sort((a, b) => a.name.localeCompare(b.name));
+                items.forEach(item => {
+                    const ext = item.name.split('.').pop().toLowerCase();
+                    const isImg = imgExts.includes(ext);
+                    const cdnUrl = JSDELIVR_BASE + item.path;
+
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; cursor:pointer; transition:0.2s;';
+                    card.onmouseenter = () => { card.style.borderColor = 'var(--accent)'; card.style.background = 'rgba(255,255,255,0.06)'; };
+                    card.onmouseleave = () => { card.style.borderColor = 'var(--border)'; card.style.background = 'rgba(255,255,255,0.03)'; };
+
+                    if (isImg) {
+                        card.innerHTML = `
+                            <div style="width:100%; aspect-ratio:1; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                                <img src="${cdnUrl}" alt="${item.name}" loading="lazy" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<span style=\'color:var(--text-dim); font-size:0.7rem;\'>No preview</span>'">
+                            </div>
+                            <div style="padding:6px 8px; display:flex; align-items:center; justify-content:space-between; gap:4px;">
+                                <span style="font-size:0.65rem; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="${item.name}">${item.name}</span>
+                                <button class="btn-small" style="padding:3px 6px; font-size:0.6rem; flex-shrink:0;" onclick="event.stopPropagation(); downloadRepoFile('${item.path}', '${item.name}')">${DL_SVG}</button>
+                            </div>
+                        `;
+                        card.onclick = () => openYhsLightbox(cdnUrl, item.name, item.path);
+                    } else {
+                        card.innerHTML = `
+                            <div style="width:100%; aspect-ratio:1; background:rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;">
+                                <span style="color:var(--accent);">${FILE_SVG.replace('width="16" height="16"', 'width="28" height="28"')}</span>
+                                <span style="font-size:0.6rem; color:var(--text-dim); text-transform:uppercase;">${ext}</span>
+                            </div>
+                            <div style="padding:6px 8px; display:flex; align-items:center; justify-content:space-between; gap:4px;">
+                                <span style="font-size:0.65rem; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="${item.name}">${item.name}</span>
+                                <button class="btn-small run" style="padding:3px 6px; font-size:0.6rem; flex-shrink:0;" onclick="event.stopPropagation(); downloadRepoFile('${item.path}', '${item.name}')">${DL_SVG}</button>
+                            </div>
+                        `;
+                    }
+                    listEl.appendChild(card);
+                });
+
+                if (items.length === 0) {
+                    listEl.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; padding:20px; grid-column:1/-1;">No files found.</div>`;
+                }
+            } catch(e) {
+                listEl.innerHTML = `<div style="color:#ff4444; font-size:0.82rem; text-align:center; padding:20px; grid-column:1/-1;">Error loading YHS files: ${e.message}</div>`;
+            }
+        }
+
+        function openYhsLightbox(url, name, path) {
+            const lb = document.getElementById('yhs-lightbox');
+            const img = document.getElementById('yhs-lightbox-img');
+            const nameEl = document.getElementById('yhs-lightbox-name');
+            const dlBtn = document.getElementById('yhs-lightbox-dl');
+            img.src = url;
+            nameEl.textContent = name;
+            dlBtn.onclick = () => downloadRepoFile(path, name);
+            lb.style.display = 'flex';
+        }
+
+        function closeYhsLightbox() {
+            const lb = document.getElementById('yhs-lightbox');
+            lb.style.display = 'none';
+            document.getElementById('yhs-lightbox-img').src = '';
+        }
+
+        function openRepoModal() {
+            const overlay = document.getElementById('repo-modal-overlay');
+            overlay.style.display = 'flex';
+            if (document.getElementById('repo-file-list').children.length <= 1 ||
+                document.getElementById('repo-file-list').querySelector('[style*="Loading"]')) {
+                loadRepoDir('');
+            }
+        }
+
+        function closeRepoModal() {
+            document.getElementById('repo-modal-overlay').style.display = 'none';
+        }
+
+        function openYhsModal() {
+            const overlay = document.getElementById('yhs-modal-overlay');
+            overlay.style.display = 'flex';
+            const list = document.getElementById('yhs-file-list');
+            if (list.children.length <= 1) {
+                loadYhsFiles();
+            }
+        }
+
+        function closeYhsModal() {
+            document.getElementById('yhs-modal-overlay').style.display = 'none';
+        }
+
+        const _origNav = nav;
+        nav = async function(page, appData) {
+            await _origNav(page, appData);
+        };
     </script>
 </body>
 </html>
