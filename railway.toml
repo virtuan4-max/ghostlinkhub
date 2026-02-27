@@ -1,5 +1,0 @@
-[deploy]
-  startCommand = "npx serve assets -l $PORT"
-
-[build]
-  builder = "nixpacks"
