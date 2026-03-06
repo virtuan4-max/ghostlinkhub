@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostLink · Network Map</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  /* ── GHOSTLINK THEME VARS ── */
+  :root {
+    --bg:           var(--bg-dark, #000000);
+    --accent:       var(--accent-color, #6ecbff);
+    --accent-glow:  rgba(110,203,255,0.3);
+    --text-primary: #ffffff;
+    --text-dim:     #94a3b8;
+    --border:       rgba(110,203,255,0.08);
+    --border-solid: rgba(110,203,255,0.18);
+    --font:         var(--font-family, 'Courier New', monospace);
+    --input-bg:     rgba(255,255,255,0.05);
+    --card-bg:      rgba(255,255,255,0.03);
+    --bg-image:     none;
+    --bg-blur:      0px;
+    --bg-brightness:100%;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+
+  body{
+    background:var(--bg);
+    color:var(--text-primary);
+    font-family:var(--font);
+    height:100vh;
+    overflow:hidden;
+    position:relative;
+  }
+
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:var(--bg-image);
+    background-size:cover;background-position:center;background-attachment:fixed;
+    filter:blur(var(--bg-blur)) brightness(var(--bg-brightness));
+    z-index:-1;pointer-events:none;
+  }
+
+  body.dragging, body.dragging *{ user-select:none !important; -webkit-user-select:none !important; cursor:grabbing !important; }
+
+  /* ── SCROLLBARS ── */
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--accent);border-radius:3px}
+  *{scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
+
+  /* ── FULL GRAPH CANVAS ── */
+  #graph-container{position:fixed;inset:0;overflow:hidden}
+  svg#graph{width:100%;height:100%}
+
+  /* ── GRAPH ELEMENTS ── */
+  .link{stroke:rgba(110,203,255,.18);stroke-width:2}
+  .link.intra{stroke:rgba(110,203,255,.32)}
+  .link.highlighted{stroke:var(--accent);stroke-opacity:1;stroke-width:3.5;filter:drop-shadow(0 0 5px var(--accent))}
+  .hull{stroke-width:1.5;fill-opacity:.045;stroke-opacity:.28;stroke-dasharray:7 4}
+  .link-hit{stroke:transparent;stroke-width:12;cursor:pointer;fill:none}
+  .node circle{cursor:pointer;transition:filter .18s}
+  .node:hover circle{filter:brightness(1.5) drop-shadow(0 0 12px currentColor)}
+  .node .hit-area{fill:transparent;stroke:none;cursor:pointer}
+  .node.status-captcha  circle{stroke-dasharray:6 2.5;fill-opacity:.12}
+  .node.status-forbidden circle{stroke-dasharray:6 2.5;fill-opacity:.10}
+  .node.status-ghost    circle{stroke-dasharray:4 4;fill-opacity:.08;opacity:.7}
+  .node.status-expired  circle{stroke-dasharray:2 5;fill-opacity:.05;opacity:.5}
+  .node text{fill:#dde4ee;font-size:10.5px;font-family:var(--font);font-weight:700;text-anchor:middle;pointer-events:none}
+  .label-bg{fill:rgba(0,0,0,.82)}
+
+  /* ── SETTINGS GEAR BUTTON (top-right) ── */
+  #btn-settings{
+    position:fixed;top:14px;right:14px;
+    background:rgba(0,0,0,.88);
+    border:1px solid var(--border-solid);
+    color:var(--text-dim);
+    width:36px;height:36px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:all .15s;
+    backdrop-filter:blur(8px);
+    z-index:30;
+    border-radius:6px;
+  }
+  #btn-settings:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+  #btn-settings svg{width:16px;height:16px}
+
+  /* load status */
+  #load-status{
+    font-size:10px;letter-spacing:.1em;
+    padding:3px 10px;border:1px solid;
+    display:inline-flex;align-items:center;gap:6px;
+    transition:all .3s;border-radius:4px;
+  }
+  #load-status.loading{color:#f59e0b;border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)}
+  #load-status.ok{color:#10b981;border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)}
+  #load-status.err{color:#ef4444;border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)}
+  #load-status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  #load-status.ok .dot,#load-status.err .dot{animation:none}
+
+  .settings-stats-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .settings-stat-chip{
+    padding:4px 12px;border:1px solid var(--border-solid);border-radius:4px;
+    font-size:10px;color:var(--text-dim);letter-spacing:.08em;
+    display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.02);
+  }
+  .settings-stat-chip span{color:var(--accent);font-weight:700}
+
+  .ctrl-group{display:flex;gap:6px;flex-wrap:wrap}
+  .ctrl-btn{
+    padding:7px 14px;background:transparent;
+    border:1px solid var(--border-solid);
+    color:var(--text-dim);font-family:var(--font);
+    font-size:10px;letter-spacing:.06em;
+    cursor:pointer;transition:all .14s;border-radius:6px;
+  }
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ctrl-btn.hi{border-color:var(--accent);color:var(--accent);background:rgba(110,203,255,.08);box-shadow:0 0 12px var(--accent-glow)}
+
+  /* ── TOOLTIP ── */
+  #tooltip{
+    position:fixed;
+    background:rgba(0,0,0,.96);
+    border:1px solid var(--accent);
+    padding:10px 13px;
+    font-size:11px;font-family:var(--font);
+    pointer-events:none;opacity:0;transition:opacity .12s;
+    max-width:250px;z-index:50;
+    box-shadow:0 0 20px var(--accent-glow);line-height:1.65;
+  }
+  #tooltip strong{color:var(--accent);display:block;margin-bottom:3px;font-size:12px}
+  #tooltip .t-row{color:var(--text-dim);font-size:10px}
+  #tooltip .t-row b{color:var(--text-primary)}
+  #tooltip .t-community{font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-top:3px;display:block}
+  #tooltip .t-status{font-size:9px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px}
+  #tooltip .t-invite{display:block;margin-top:8px;padding:5px 10px;background:rgba(110,203,255,.07);border:1px solid rgba(110,203,255,.25);color:var(--accent);text-decoration:none;font-size:10px;text-align:center;transition:background .14s}
+  #tooltip .t-invite:hover{background:rgba(110,203,255,.15)}
+  #tooltip .t-invite.none{color:var(--text-dim);cursor:default}
+
+  /* ── LOADING OVERLAY ── */
+  #loading-overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.92);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:20px;z-index:100;backdrop-filter:blur(4px);
+    transition:opacity .4s;
+  }
+  #loading-overlay.hidden{opacity:0;pointer-events:none}
+  .loading-spinner{
+    width:48px;height:48px;
+    border:2px solid var(--border-solid);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+    box-shadow:0 0 20px var(--accent-glow);
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim)}
+  .loading-url{font-size:9px;color:rgba(110,203,255,.4);letter-spacing:.06em;max-width:300px;text-align:center;word-break:break-all}
+
+  /* ── NODE INFO MODAL ── */
+  #node-modal{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.82);z-index:200;
+    align-items:center;justify-content:center;
+    backdrop-filter:blur(8px);
+    animation:fadeIn 0.18s ease;
+  }
+  #node-modal.open{display:flex}
+  #node-box{
+    background:rgba(6,8,14,.97);
+    border:1px solid var(--accent);
+    border-radius:16px;
+    width:480px;max-width:95vw;max-height:88vh;
+    box-shadow:0 0 60px var(--accent-glow),0 0 20px rgba(0,0,0,.9);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  #node-modal-header{
+    padding:14px 18px;
+    border-bottom:1px solid var(--border-solid);
+    display:flex;align-items:center;justify-content:space-between;
+    flex-shrink:0;
+  }
+  #node-panel-title{
+    font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;
+    display:flex;align-items:center;gap:8px;
+  }
+  #node-community-badge{font-size:9px;letter-spacing:.1em}
+  #node-panel-close{
+    background:transparent;border:1px solid var(--border);
+    color:var(--text-dim);width:30px;height:30px;
+    border-radius:6px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:.2s;font-size:14px;
+  }
+  #node-panel-close:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* floating search bar */
+  #search-wrap{
+    position:fixed;top:14px;left:14px;z-index:30;
+    display:flex;align-items:center;gap:0;
+  }
+  #search{
+    width:200px;background:rgba(0,0,0,.88);border:1px solid var(--border-solid);
+    border-radius:8px;
+    padding:8px 12px;color:var(--text-primary);font-family:var(--font);font-size:11px;
+    outline:none;transition:all .14s;backdrop-filter:blur(8px);
+  }
+  #search:focus{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow);width:240px}
+  #search::placeholder{color:var(--text-dim)}
+
+  #node-info{padding:14px 16px;flex:1;overflow-y:auto}
+  .info-empty{color:var(--text-dim);font-size:11px;line-height:1.8}
+  .info-name{font-size:13px;font-weight:700;margin-bottom:10px;word-break:break-word}
+  .info-row{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:6px 0;border-bottom:1px solid var(--border);font-size:10.5px;gap:8px;
+  }
+  .info-row:last-child{border-bottom:none}
+  .info-label{color:var(--text-dim);flex-shrink:0;text-transform:uppercase;font-size:9px;letter-spacing:1px;margin-top:1px}
+  .info-value{color:var(--text-primary);text-align:right;word-break:break-all;font-size:11px}
+  .invite-link{color:var(--accent);text-decoration:none}
+  .invite-link:hover{text-decoration:underline}
+  .conn-block{margin-top:12px}
+  .info-icon-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .info-server-icon{
+    width:52px;height:52px;border-radius:12px;flex-shrink:0;
+    background:rgba(110,203,255,.08);border:1px solid var(--border-solid);
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:var(--accent);overflow:hidden;
+  }
+  .info-server-icon img{width:100%;height:100%;object-fit:cover;border-radius:11px}
+  .info-server-name-col{flex:1;min-width:0}
+  .info-description{
+    font-size:10.5px;color:var(--text-dim);line-height:1.65;
+    padding:8px 0 4px;border-bottom:1px solid var(--border);
+    margin-bottom:4px;white-space:pre-wrap;word-break:break-word;
+  }
+  .conn-header{
+    font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:6px;
+  }
+  .conn-item{
+    padding:5px 8px;border:1px solid var(--border);
+    margin-bottom:3px;font-size:10px;cursor:pointer;
+    transition:all .12s;display:flex;align-items:center;gap:5px;
+    border-radius:4px;
+  }
+  .conn-item:hover{border-color:var(--accent);background:rgba(110,203,255,.04)}
+  .conn-more-btn{
+    width:100%;margin-top:4px;padding:5px 8px;
+    background:rgba(110,203,255,.04);border:1px dashed var(--border-solid);
+    color:var(--text-dim);font-family:var(--font);font-size:10px;
+    cursor:pointer;transition:all .14s;border-radius:4px;text-align:center;letter-spacing:.06em;
+  }
+  .conn-more-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(110,203,255,.08)}
+
+  .data-btns{display:flex;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  .view-data-btn{
+    display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+    font-family:var(--font);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    cursor:pointer;border:1px solid var(--border-solid);background:rgba(255,255,255,.03);
+    color:var(--text-dim);transition:all .14s;margin:2px 4px 0 0;border-radius:4px;
+  }
+  .view-data-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(110,203,255,.06)}
+  .view-data-btn.ip-btn{border-color:rgba(16,185,129,.4);color:#10b981}
+  .view-data-btn.ip-btn:hover{background:rgba(16,185,129,.08);border-color:#10b981}
+  .view-data-btn.url-btn{border-color:rgba(167,139,250,.4);color:#a78bfa}
+  .view-data-btn.url-btn:hover{background:rgba(167,139,250,.08);border-color:#a78bfa}
+
+  /* ── MODAL SHARED ── */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.85);z-index:200;
+    align-items:center;justify-content:center;
+    backdrop-filter:blur(10px);
+    animation:fadeIn 0.2s ease;
+  }
+  .modal-overlay.open{display:flex}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── SETTINGS MODAL ── */
+  #settings-box{
+    background:var(--card-bg);
+    border:1px solid var(--accent);
+    border-radius:16px;
+    width:680px;max-width:96vw;max-height:90vh;
+    box-shadow:0 0 60px var(--accent-glow),0 0 20px rgba(0,0,0,.8);
+    display:flex;flex-direction:column;
+  }
+  .modal-header{
+    padding:14px 20px;border-bottom:1px solid var(--border-solid);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+    border-radius:16px 16px 0 0;
+  }
+  .modal-header .mh-title{
+    font-size:11px;font-weight:700;color:var(--accent);
+    letter-spacing:.18em;text-transform:uppercase;
+  }
+  .modal-close{
+    background:transparent;border:1px solid var(--border);
+    color:var(--text-dim);width:30px;height:30px;border-radius:6px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-size:14px;transition:.2s;
+  }
+  .modal-close:hover{border-color:var(--accent);color:var(--accent)}
+
+  .settings-tabs{
+    display:flex;border-bottom:1px solid var(--border-solid);flex-shrink:0;overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .settings-tabs::-webkit-scrollbar{display:none}
+  .stab{
+    padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;
+    transition:all .14s;background:none;border-top:none;border-left:none;border-right:none;
+    font-family:var(--font);white-space:nowrap;
+  }
+  .stab:hover{color:var(--text-primary)}
+  .stab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  .settings-body{flex:1;overflow-y:auto;padding:18px}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block;animation:fadeIn 0.2s ease}
+
+  .sg{margin-bottom:22px}
+  .sg-title{
+    font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:12px;padding-bottom:6px;
+    border-bottom:1px solid var(--border);
+  }
+  .badge{display:inline-block;padding:1px 5px;font-size:8px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;margin-left:5px;vertical-align:middle}
+  .badge-live{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981}
+  .badge-restart{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b}
+
+  .setting-row{display:grid;grid-template-columns:1fr 120px 64px;align-items:center;gap:10px;margin-bottom:10px}
+  .setting-label{font-size:10px;color:var(--text-dim);line-height:1.4}
+  .setting-label small{display:block;font-size:9px;color:rgba(148,163,184,.5);margin-top:2px}
+
+  input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--border-solid);outline:none;cursor:pointer;border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;box-shadow:0 0 6px var(--accent-glow);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;border:none;box-shadow:0 0 6px var(--accent-glow)}
+
+  .val-display{text-align:right;font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.05em}
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .toggle-label{font-size:10px;color:var(--text-dim)}
+  .toggle{width:34px;height:18px;background:var(--border-solid);border-radius:9px;cursor:pointer;position:relative;transition:background .2s;border:1px solid var(--border-solid);flex-shrink:0}
+  .toggle.on{background:rgba(110,203,255,.3);border-color:var(--accent)}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--text-dim);border-radius:50%;transition:all .2s}
+  .toggle.on::after{left:18px;background:var(--accent)}
+
+  #restart-warn{
+    display:none;margin:0 18px 14px;padding:8px 12px;
+    background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);
+    color:#f59e0b;font-size:10px;letter-spacing:.04em;line-height:1.6;border-radius:4px;
+  }
+  #restart-warn.visible{display:block}
+
+  /* community colors grid */
+  #comm-colors-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:4px;
+  }
+  .comm-color-row{
+    display:flex;align-items:center;gap:8px;padding:7px 10px;
+    border:1px solid var(--border);background:rgba(255,255,255,.02);border-radius:4px;
+  }
+  .comm-color-swatch{width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;padding:0;background:transparent}
+  .comm-color-swatch::-webkit-color-swatch-wrapper{padding:0;border-radius:50%}
+  .comm-color-swatch::-webkit-color-swatch{border-radius:50%;border:none}
+  .comm-color-label{font-size:10px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .comm-color-reset{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;padding:0 2px;opacity:.5}
+  .comm-color-reset:hover{opacity:1;color:var(--accent)}
+  #no-communities-msg{color:var(--text-dim);font-size:11px;text-align:center;padding:20px;line-height:1.7}
+
+  /* ── COMMUNITIES OVERVIEW TAB ── */
+  #comm-list{display:flex;flex-direction:column;gap:6px}
+  .comm-card{
+    border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;cursor:pointer;transition:.2s;
+    background:rgba(255,255,255,.02);
+  }
+  .comm-card:hover{border-color:var(--accent);background:rgba(110,203,255,.04)}
+  .comm-card-header{
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
+  }
+  .comm-card-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .comm-card-name{font-size:11px;font-weight:700;color:var(--text-primary);letter-spacing:.04em}
+  .comm-card-stats{display:flex;gap:12px}
+  .comm-card-stat{
+    font-size:10px;color:var(--text-dim);
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .comm-card-stat b{color:var(--accent);font-size:13px;font-weight:700;display:block}
+  .comm-nodes-preview{
+    display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;border-top:1px solid var(--border);padding-top:6px;
+  }
+  .comm-node-tag{
+    font-size:9px;letter-spacing:.04em;padding:2px 6px;
+    border:1px solid var(--border-solid);border-radius:4px;color:var(--text-dim);
+  }
+
+  .settings-footer{
+    padding:12px 18px;border-top:1px solid var(--border-solid);
+    display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;
+    border-radius:0 0 16px 16px;
+  }
+  .s-btn{
+    padding:7px 18px;font-family:var(--font);font-size:10px;
+    letter-spacing:.08em;cursor:pointer;transition:all .14s;border-radius:6px;
+  }
+  .s-btn-ghost{background:transparent;border:1px solid var(--border-solid);color:var(--text-dim)}
+  .s-btn-ghost:hover{border-color:var(--text-dim);color:var(--text-primary)}
+  .s-btn-danger{
+    background:transparent;border:1px solid rgba(255,68,68,.4);
+    color:#ff4444;margin-right:auto;
+  }
+  .s-btn-danger:hover{background:rgba(255,68,68,.15)}
+  .s-btn-primary{
+    background:var(--accent);border:none;color:#000;font-weight:bold;
+  }
+  .s-btn-primary:hover{box-shadow:0 0 12px var(--accent-glow);opacity:.9}
+
+  /* ── EXPORT MODAL ── */
+  #export-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+  #export-modal.open{display:flex;animation:fadeIn .2s ease}
+  #export-box{
+    background:var(--card-bg);border:1px solid var(--accent);
+    border-radius:16px;
+    width:540px;max-width:90vw;
+    box-shadow:0 0 50px var(--accent-glow);
+    display:flex;flex-direction:column;
+  }
+  #export-header{padding:13px 18px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;justify-content:space-between}
+  #export-header .eh-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.15em;text-transform:uppercase}
+  #export-close{
+    background:transparent;border:1px solid var(--border);color:var(--text-dim);
+    width:30px;height:30px;border-radius:6px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;transition:.2s;
+  }
+  #export-close:hover{border-color:var(--accent);color:var(--accent)}
+  #export-filters{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .ef-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-right:4px}
+  .filter-btn{
+    padding:3px 10px;border:1px solid var(--border-solid);background:transparent;
+    color:var(--text-dim);font-family:var(--font);font-size:10px;cursor:pointer;
+    transition:all .12s;border-radius:4px;
+  }
+  .filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(110,203,255,.06)}
+  #export-textarea{
+    margin:12px 16px;
+    background:rgba(255,255,255,.02);border:1px solid var(--border-solid);
+    color:var(--text-primary);font-family:var(--font);font-size:11px;
+    padding:10px;height:270px;resize:none;outline:none;line-height:1.8;
+    border-radius:8px;
+  }
+  #export-footer{padding:10px 16px 16px;display:flex;gap:8px;align-items:center}
+  #export-count{font-size:10px;color:var(--text-dim);margin-right:auto}
+  .export-btn{
+    padding:7px 16px;border:1px solid var(--accent);
+    background:rgba(110,203,255,.07);color:var(--accent);
+    font-family:var(--font);font-size:10px;cursor:pointer;
+    transition:all .14s;border-radius:6px;
+  }
+  .export-btn:hover{background:rgba(110,203,255,.16)}
+  .export-btn.copied{border-color:#4ade80;color:#4ade80;background:rgba(74,222,128,.07)}
+
+  /* ── DATA MODAL ── */
+  #data-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;backdrop-filter:blur(6px);align-items:center;justify-content:center}
+  #data-modal.open{display:flex;animation:fadeIn .2s ease}
+  #data-box{
+    background:var(--card-bg);border:1px solid var(--accent);
+    border-radius:16px;
+    width:560px;max-width:95vw;max-height:82vh;
+    box-shadow:0 0 60px var(--accent-glow);
+    display:flex;flex-direction:column;
+  }
+  #data-header{padding:13px 18px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  #data-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.16em;text-transform:uppercase}
+  #data-count{font-size:10px;color:var(--text-dim);margin-top:2px}
+  #data-close{
+    background:transparent;border:1px solid var(--border);color:var(--text-dim);
+    width:30px;height:30px;border-radius:6px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;transition:.2s;
+  }
+  #data-close:hover{border-color:var(--accent);color:var(--accent)}
+  #data-search-wrap{padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+  #data-search{
+    width:100%;background:var(--input-bg);border:1px solid var(--border-solid);
+    border-radius:8px;
+    color:var(--text-primary);font-family:var(--font);font-size:11px;
+    padding:6px 10px;outline:none;transition:border-color .14s;
+  }
+  #data-search:focus{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+  #data-search::placeholder{color:var(--text-dim)}
+  #data-list{flex:1;overflow-y:auto;padding:8px 0}
+  .data-item{
+    display:flex;align-items:flex-start;gap:10px;padding:8px 16px;
+    border-bottom:1px solid var(--border);font-size:11px;transition:background .12s;
+  }
+  .data-item:last-child{border-bottom:none}
+  .data-item:hover{background:rgba(110,203,255,.04)}
+  .data-item-main{flex:1;min-width:0;word-break:break-all;line-height:1.5}
+  .data-item-main a{color:var(--accent);text-decoration:none}
+  .data-item-main a:hover{text-decoration:underline}
+  .data-item-ch{font-size:9px;color:var(--text-dim);margin-top:2px}
+  .data-item-count{font-size:10px;color:#f59e0b;flex-shrink:0;white-space:nowrap;padding-top:2px}
+  .data-empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:11px;line-height:1.8}
+
+  label{
+    display:block;font-size:0.8rem;color:var(--text-dim);
+    margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── FULL GRAPH CANVAS ─── -->
+<div id="graph-container">
+  <svg id="graph"></svg>
+  <div id="tooltip"></div>
+  <div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Fetching GhostLink Network</div>
+    <div class="loading-url">ghostlinknet.json</div>
+  </div>
+</div>
+
+<!-- ─── GEAR SETTINGS BUTTON (top-right) ─── -->
+<button id="btn-settings" title="Settings">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<!-- ─── FLOATING SEARCH ─── -->
+<div id="search-wrap">
+  <input type="text" id="search" placeholder="&#x2315; Search nodes…" autocomplete="off">
+</div>
+
+<!-- ─── NODE INFO MODAL ─── -->
+<div id="node-modal">
+  <div id="node-box">
+    <div id="node-modal-header">
+      <div id="node-panel-title">
+        ◈ NODE INFO
+        <span id="node-community-badge"></span>
+      </div>
+      <button id="node-panel-close">✕</button>
+    </div>
+    <div id="node-info">
+      <p class="info-empty">Loading network data…<br><br>Click any node to inspect its connections and details.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SETTINGS MODAL ─── -->
+<div class="modal-overlay" id="settings-modal">
+  <div id="settings-box">
+    <div class="modal-header">
+      <span class="mh-title">◈ Render Settings</span>
+      <button class="modal-close" id="settings-close">✕</button>
+    </div>
+    <div class="settings-tabs">
+      <button class="stab active" data-tab="display">Display</button>
+      <button class="stab" data-tab="communities-overview">Communities</button>
+      <button class="stab" data-tab="community">Community</button>
+      <button class="stab" data-tab="nodes">Nodes</button>
+      <button class="stab" data-tab="forces">Forces</button>
+      <button class="stab" data-tab="simulation">Simulation</button>
+      <button class="stab" data-tab="colors">Colors</button>
+    </div>
+    <div class="settings-body">
+      <div id="restart-warn">&#x26A0; Some changed settings require restarting the simulation. The layout will re-randomize.</div>
+
+      <!-- DISPLAY TAB -->
+      <div class="tab-panel active" id="tab-display">
+        <div class="sg">
+          <div class="sg-title">Network Status</div>
+          <div class="settings-stats-row">
+            <div id="load-status" class="loading"><div class="dot"></div><span id="load-status-text">CONNECTING</span></div>
+            <div class="settings-stat-chip">NODES <span id="stat-nodes">—</span></div>
+            <div class="settings-stat-chip">EDGES <span id="stat-edges">—</span></div>
+            <div class="settings-stat-chip">CLUSTERS <span id="stat-communities">—</span></div>
+          </div>
+          <div class="ctrl-group">
+            <button class="ctrl-btn" id="btn-reset">RESET VIEW</button>
+            <button class="ctrl-btn" id="btn-freeze">FREEZE</button>
+            <button class="ctrl-btn" id="btn-reload">↺ RELOAD</button>
+            <button class="ctrl-btn hi" id="btn-export">EXPORT INVITES</button>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Visibility</div>
+          <div class="toggle-row"><div class="toggle-label">Show node labels <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-labels" data-key="showLabels"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show status rings on unreachable nodes <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-ring" data-key="showRing"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show community hulls <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-hulls" data-key="showHulls"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show directional arrows <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-arrows" data-key="showArrows"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Brighten intra-community links <span class="badge badge-live">live</span></div><div class="toggle on" id="t-intra-bright" data-key="intraBright"></div></div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Opacity</div>
+          <div class="setting-row">
+            <div class="setting-label">Link opacity <span class="badge badge-live">live</span><small>Brightness of connection lines</small></div>
+            <input type="range" id="s-link-opacity" data-key="linkOpacity" min="0.01" max="1" step="0.01" value="0.5">
+            <div class="val-display" id="v-link-opacity">0.5</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Hull fill opacity <span class="badge badge-live">live</span><small>Community background fill</small></div>
+            <input type="range" id="s-hull-opacity" data-key="hullOpacity" min="0.01" max="0.5" step="0.005" value="0.3">
+            <div class="val-display" id="v-hull-opacity">0.3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMUNITIES OVERVIEW TAB -->
+      <div class="tab-panel" id="tab-communities-overview">
+        <div class="sg">
+          <div class="sg-title">Communities · Nodes · Edges</div>
+          <p style="font-size:10px;color:var(--text-dim);margin-bottom:14px;line-height:1.7">Each community detected by Louvain modularity. Click a community card to highlight it on the graph.</p>
+          <div id="comm-list"><p style="color:var(--text-dim);font-size:11px;padding:20px;text-align:center;">Load graph data to view communities.</p></div>
+        </div>
+      </div>
+
+      <!-- COMMUNITY SETTINGS TAB -->
+      <div class="tab-panel" id="tab-community">
+        <div class="sg">
+          <div class="sg-title">Louvain Resolution</div>
+          <p style="font-size:10px;color:var(--text-dim);margin-bottom:12px;line-height:1.7">
+            Controls how granular communities are split. Higher = more communities (finer grain). Lower = fewer, larger clusters.
+            <br><strong style="color:var(--accent)">Tip:</strong> Values between 1.5–3.0 produce 23+ distinct communities on most graphs.
+          </p>
+          <div class="setting-row">
+            <div class="setting-label">Resolution (γ) <span class="badge badge-restart">restart</span><small>Higher = more communities. 1.0 = standard modularity</small></div>
+            <input type="range" id="s-resolution" data-key="resolution" min="0.5" max="5.0" step="0.1" value="2.0">
+            <div class="val-display" id="v-resolution">2.0</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Louvain passes <span class="badge badge-restart">restart</span><small>More passes = more stable communities</small></div>
+            <input type="range" id="s-lp-iter" data-key="lpIter" min="1" max="10" step="1" value="3">
+            <div class="val-display" id="v-lp-iter">3</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Hull Display</div>
+          <div class="setting-row">
+            <div class="setting-label">Min nodes for hull <span class="badge badge-live">live</span><small>Communities smaller than this get no outline</small></div>
+            <input type="range" id="s-hull-min" data-key="hullMin" min="2" max="10" step="1" value="3">
+            <div class="val-display" id="v-hull-min">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NODES TAB -->
+      <div class="tab-panel" id="tab-nodes">
+        <div class="sg">
+          <div class="sg-title">Node Size (by member count)</div>
+          <div class="setting-row">
+            <div class="setting-label">Min radius px <span class="badge badge-restart">restart</span><small>Smallest node</small></div>
+            <input type="range" id="s-r-min" data-key="rMin" min="4" max="20" step="1" value="8">
+            <div class="val-display" id="v-r-min">8</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Max radius px <span class="badge badge-restart">restart</span><small>Largest node</small></div>
+            <input type="range" id="s-r-max" data-key="rMax" min="15" max="80" step="1" value="38">
+            <div class="val-display" id="v-r-max">38</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Labels</div>
+          <div class="setting-row">
+            <div class="setting-label">Max label length <span class="badge badge-live">live</span><small>Characters before truncating</small></div>
+            <input type="range" id="s-label-len" data-key="labelLen" min="6" max="40" step="1" value="22">
+            <div class="val-display" id="v-label-len">22</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORCES TAB -->
+      <div class="tab-panel" id="tab-forces">
+        <div class="sg">
+          <div class="sg-title">Link Forces</div>
+          <div class="setting-row">
+            <div class="setting-label">Intra-community link distance px <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-link-intra-dist" data-key="linkIntraDist" min="30" max="300" step="10" value="100">
+            <div class="val-display" id="v-link-intra-dist">100</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Inter-community link distance px <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-link-inter-dist" data-key="linkInterDist" min="100" max="800" step="25" value="350">
+            <div class="val-display" id="v-link-inter-dist">350</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Intra-community strength <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-link-intra-str" data-key="linkIntraStr" min="0.05" max="1" step="0.05" value="0.7">
+            <div class="val-display" id="v-link-intra-str">0.7</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Inter-community strength <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-link-inter-str" data-key="linkInterStr" min="0.01" max="0.5" step="0.01" value="0.08">
+            <div class="val-display" id="v-link-inter-str">0.08</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Repulsion</div>
+          <div class="setting-row">
+            <div class="setting-label">Base charge (small nodes) <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-charge-min" data-key="chargeMin" min="-3000" max="-100" step="100" value="-900">
+            <div class="val-display" id="v-charge-min">-900</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Max charge (large nodes) <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-charge-max" data-key="chargeMax" min="-8000" max="-500" step="100" value="-3500">
+            <div class="val-display" id="v-charge-max">-3500</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Charge distance max px <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-charge-dist" data-key="chargeDist" min="200" max="3000" step="100" value="1400">
+            <div class="val-display" id="v-charge-dist">1400</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Cluster Gravity</div>
+          <div class="setting-row">
+            <div class="setting-label">Gravity strength <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-cluster-str" data-key="clusterStr" min="0" max="0.5" step="0.01" value="0.14">
+            <div class="val-display" id="v-cluster-str">0.14</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Collision</div>
+          <div class="setting-row">
+            <div class="setting-label">Padding around nodes px <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-collision-pad" data-key="collisionPad" min="5" max="150" step="5" value="50">
+            <div class="val-display" id="v-collision-pad">50</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIMULATION TAB -->
+      <div class="tab-panel" id="tab-simulation">
+        <div class="sg">
+          <div class="sg-title">Simulation Behavior</div>
+          <div class="setting-row">
+            <div class="setting-label">Alpha decay <span class="badge badge-restart">restart</span><small>Lower = longer run, better spread</small></div>
+            <input type="range" id="s-alpha-decay" data-key="alphaDecay" min="0.001" max="0.05" step="0.001" value="0.011">
+            <div class="val-display" id="v-alpha-decay">0.011</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Velocity decay <span class="badge badge-restart">restart</span><small>Higher = less bouncy</small></div>
+            <input type="range" id="s-vel-decay" data-key="velDecay" min="0.1" max="0.9" step="0.01" value="0.38">
+            <div class="val-display" id="v-vel-decay">0.38</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Centering strength <span class="badge badge-restart">restart</span></div>
+            <input type="range" id="s-center-str" data-key="centerStr" min="0" max="0.1" step="0.002" value="0.018">
+            <div class="val-display" id="v-center-str">0.018</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLORS TAB -->
+      <div class="tab-panel" id="tab-colors">
+        <div class="sg">
+          <div class="sg-title">Community Colors <span class="badge badge-live">live</span></div>
+          <p style="font-size:10px;color:var(--text-dim);margin-bottom:12px;line-height:1.6">Click a color swatch to change that community's color.</p>
+          <div id="comm-colors-grid">
+            <p id="no-communities-msg">Loading graph…</p>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="s-btn s-btn-ghost" id="btn-reset-all-colors" style="width:100%;text-align:center">Reset All Colors to Defaults</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="s-btn s-btn-danger" id="s-btn-reset-defaults">Reset All Defaults</button>
+      <button class="s-btn s-btn-ghost" id="s-btn-close">Close</button>
+      <button class="s-btn s-btn-primary" id="s-btn-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── EXPORT MODAL ─── -->
+<div id="export-modal">
+  <div id="export-box">
+    <div id="export-header">
+      <span class="eh-title">Export Invite Links</span>
+      <button id="export-close">✕</button>
+    </div>
+    <div id="export-filters">
+      <span class="ef-label">Filter:</span>
+      <button class="filter-btn active" data-status="all">All</button>
+      <button class="filter-btn" data-status="ok">Reachable</button>
+      <button class="filter-btn" data-status="captcha">Captcha</button>
+      <button class="filter-btn" data-status="forbidden">Forbidden</button>
+      <button class="filter-btn" data-status="ghost">Ghost</button>
+    </div>
+    <textarea id="export-textarea" readonly spellcheck="false"></textarea>
+    <div id="export-footer">
+      <span id="export-count">0 links</span>
+      <button class="export-btn" id="btn-copy-list">COPY ALL</button>
+      <button class="export-btn" id="btn-download-list">DOWNLOAD .TXT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DATA MODAL ─── -->
+<div id="data-modal">
+  <div id="data-box">
+    <div id="data-header">
+      <div><div id="data-title">--</div><div id="data-count"></div></div>
+      <button id="data-close" onclick="closeDataModal()">✕</button>
+    </div>
+    <div id="data-search-wrap">
+      <input id="data-search" placeholder="Filter by value or channel…" autocomplete="off">
+    </div>
+    <div id="data-list"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// GHOSTLINK THEME SYNC
+// ══════════════════════════════════════════════════════════
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'GHOSTLINK_THEME_DATA') {
+    const t = e.data.theme;
+    if (t.accent) document.documentElement.style.setProperty('--accent-color', t.accent);
+    if (t.bg)     document.documentElement.style.setProperty('--bg-dark', t.bg);
+    if (t.font)   document.documentElement.style.setProperty('--font-family', t.font);
+  }
+});
+(function() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('accent')) document.documentElement.style.setProperty('--accent-color', decodeURIComponent(p.get('accent')));
+  if (p.get('bg'))     document.documentElement.style.setProperty('--bg-dark',      decodeURIComponent(p.get('bg')));
+  window.parent.postMessage({ type: 'GHOSTLINK_QUERY_THEME' }, '*');
+})();
+
+// ══════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════
+const PHYSICS_KEYS = new Set([
+  'resolution','lpIter','rMin','rMax',
+  'linkIntraDist','linkInterDist','linkIntraStr','linkInterStr',
+  'chargeMin','chargeMax','chargeDist','clusterStr','collisionPad',
+  'alphaDecay','velDecay','centerStr',
+]);
+const DEFAULTS = {
+  // ── Community detection ──
+  resolution: 2.0,   // Louvain gamma — higher = more communities
+  lpIter: 3,         // number of Louvain passes for stability
+  hullMin: 3,
+  // ── Nodes ──
+  rMin: 8, rMax: 38, labelLen: 22,
+  // ── Forces ──
+  linkIntraDist: 100, linkInterDist: 350, linkIntraStr: 0.7, linkInterStr: 0.08,
+  chargeMin: -900, chargeMax: -3500, chargeDist: 1400,
+  clusterStr: 0.14, collisionPad: 50,
+  // ── Simulation ──
+  alphaDecay: 0.011, velDecay: 0.38, centerStr: 0.018,
+  // ── Visibility ──
+  showHulls: true, showLabels: true, showRing: true,
+  showArrows: true, intraBright: true,
+  linkOpacity: 0.5, hullOpacity: 0.3,
+};
+let S = {...DEFAULTS};
+let P = {...DEFAULTS};
+
+// ══════════════════════════════════════════════════════════
+// PALETTE
+// ══════════════════════════════════════════════════════════
+const BASE_PALETTE = [
+  '#6ecbff','#f59e0b','#10b981','#e879f9','#fb923c',
+  '#a78bfa','#34d399','#f472b6','#60a5fa','#facc15',
+  '#4ade80','#38bdf8','#c084fc','#fb7185','#86efac',
+  '#67e8f9','#fde68a','#d8b4fe','#fca5a5','#bbf7d0',
+  '#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6',
+  '#22d3ee','#a3e635','#fb923c','#f43f5e','#0ea5e9',
+];
+let customColors = {};
+function cc(idx) { return customColors[idx] ?? BASE_PALETTE[idx % BASE_PALETTE.length]; }
+const STATUS_STROKE = { ok:null, captcha:'#f59e0b', forbidden:'#ef4444', ghost:'#64748b', expired:'#334155' };
+
+// ══════════════════════════════════════════════════════════
+// COMMUNITY DETECTION — Louvain modularity with resolution
+//
+// This implementation uses the Louvain method (Blondel et al. 2008)
+// with a resolution parameter γ. It only moves nodes when doing so
+// genuinely improves modularity — NO random force-splitting.
+//
+// γ > 1.0  → finer communities (more clusters)
+// γ = 1.0  → standard modularity
+// γ < 1.0  → coarser communities (fewer, larger clusters)
+// ══════════════════════════════════════════════════════════
+function detectCommunities(nodes, edges) {
+  const ids = nodes.map(n => n.id);
+  if (!ids.length) return {};
+
+  // ── Build adjacency (treat as undirected, unit weights) ──
+  const W = {};   // W[u][v] = edge weight
+  const K = {};   // K[u] = sum of weights (degree)
+  ids.forEach(id => { W[id] = {}; K[id] = 0; });
+
+  let M = 0; // total edge weight (each undirected edge counted once)
+  edges.forEach(e => {
+    const u = typeof e.source === 'object' ? e.source.id : e.source;
+    const v = typeof e.target === 'object' ? e.target.id : e.target;
+    if (!W[u] || !W[v] || u === v) return;
+    // Undirected: add weight symmetrically
+    W[u][v] = (W[u][v] || 0) + 1;
+    W[v][u] = (W[v][u] || 0) + 1;
+    K[u]++;
+    K[v]++;
+    M++; // count once per undirected edge
+  });
+
+  // Isolated nodes (no edges) → each gets its own community
+  if (M === 0) {
+    const r = {};
+    ids.forEach((id, i) => { r[id] = i; });
+    return r;
+  }
+
+  const gamma = (typeof S.resolution === 'number' && S.resolution > 0) ? S.resolution : 2.0;
+  const passes = (typeof S.lpIter === 'number' && S.lpIter > 0) ? S.lpIter : 3;
+
+  // ── Louvain phase 1: greedy local moves ──
+  // C[id] = community label for node id
+  // Sigma[c] = total degree of all members of community c
+  function runLouvainPass(nodeList, adjMap, degMap, totalM) {
+    const C = {};
+    nodeList.forEach((id, i) => { C[id] = id; }); // start: each node alone
+    const Sigma = {};
+    nodeList.forEach(id => { Sigma[id] = degMap[id] || 0; });
+
+    let improved = true;
+    let guard = 0;
+    const maxGuard = 300;
+
+    while (improved && guard++ < maxGuard) {
+      improved = false;
+      // Randomise traversal order for better convergence
+      const order = [...nodeList].sort(() => Math.random() - 0.5);
+
+      for (const id of order) {
+        const ci = C[id];
+        const ki = degMap[id] || 0;
+        if (ki === 0) continue; // skip isolated nodes
+
+        // Accumulate edge weights to each neighbouring community
+        const nbComm = {};
+        for (const nb in adjMap[id]) {
+          if (!adjMap[id].hasOwnProperty(nb)) continue;
+          const c = C[nb];
+          nbComm[c] = (nbComm[c] || 0) + adjMap[id][nb];
+        }
+
+        // Remove id from its current community
+        Sigma[ci] = (Sigma[ci] || 0) - ki;
+
+        // Evaluate gain of placing id into each neighbouring community
+        // ΔQ = k_{i→c}/totalM − γ * ki * Σ_c / (2 * totalM²)
+        // We compare against re-inserting into ci (the baseline).
+        let bestC = ci;
+        let bestGain = (nbComm[ci] || 0) / totalM
+                       - gamma * ki * (Sigma[ci] || 0) / (2 * totalM * totalM);
+
+        for (const c in nbComm) {
+          if (!nbComm.hasOwnProperty(c) || c === ci) continue;
+          const gain = nbComm[c] / totalM
+                       - gamma * ki * (Sigma[c] || 0) / (2 * totalM * totalM);
+          if (gain > bestGain + 1e-10) {
+            bestGain = gain;
+            bestC = c;
+          }
+        }
+
+        // Apply move
+        C[id] = bestC;
+        Sigma[bestC] = (Sigma[bestC] || 0) + ki;
+        if (bestC !== ci) improved = true;
+      }
+    }
+
+    return C;
+  }
+
+  // Run multiple passes for stability, accumulating consensus
+  // After each pass, re-map so that community labels are the most common
+  // label chosen for that node across passes.
+  const votes = {}; // votes[id][label] = count
+  ids.forEach(id => { votes[id] = {}; });
+
+  for (let p = 0; p < passes; p++) {
+    const C = runLouvainPass(ids, W, K, M);
+    ids.forEach(id => {
+      const lbl = C[id];
+      votes[id][lbl] = (votes[id][lbl] || 0) + 1;
+    });
+  }
+
+  // Assign each node the community it voted for most
+  const voted = {};
+  ids.forEach(id => {
+    let best = null, bestCount = -1;
+    for (const lbl in votes[id]) {
+      if (votes[id][lbl] > bestCount) { bestCount = votes[id][lbl]; best = lbl; }
+    }
+    voted[id] = best;
+  });
+
+  // ── Renumber communities 0, 1, 2, … ──
+  const remap = {};
+  let next = 0;
+  const result = {};
+  ids.forEach(id => {
+    const lbl = voted[id];
+    if (remap[lbl] === undefined) remap[lbl] = next++;
+    result[id] = remap[lbl];
+  });
+
+  return result;
+}
+
+// ══════════════════════════════════════════════════════════
+// CLUSTER GRAVITY
+// ══════════════════════════════════════════════════════════
+function forceCluster(communityOf, strength) {
+  let nodes;
+  function force(alpha) {
+    const sum={}, count={};
+    for (const n of nodes) {
+      const c=communityOf[n.id]; if(c===undefined) continue;
+      if(!sum[c]) sum[c]={x:0,y:0};
+      sum[c].x+=n.x; sum[c].y+=n.y; count[c]=(count[c]||0)+1;
+    }
+    const center={};
+    for (const c in sum) center[c]={x:sum[c].x/count[c],y:sum[c].y/count[c]};
+    for (const n of nodes) {
+      const c=communityOf[n.id]; if(c===undefined||!center[c]) continue;
+      n.vx+=(center[c].x-n.x)*strength*alpha;
+      n.vy+=(center[c].y-n.y)*strength*alpha;
+    }
+  }
+  force.initialize=_n=>{nodes=_n;};
+  return force;
+}
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let graphData=null, simulation=null, frozen=false;
+let linkSel, nodeSel, hullSel, hullLayer, zoom;
+let currentLinks=[], currentNodeById={}, currentCommunityOf={};
+let currentNodeData=[];
+
+// ══════════════════════════════════════════════════════════
+// LOAD STATUS
+// ══════════════════════════════════════════════════════════
+function setLoadStatus(state, text) {
+  const el = document.getElementById('load-status');
+  const tx = document.getElementById('load-status-text');
+  el.className = state;
+  tx.textContent = text;
+}
+
+// ══════════════════════════════════════════════════════════
+// FETCH
+// ══════════════════════════════════════════════════════════
+const NETWORK_JSON_URL = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/assets/ghostlinknet.json';
+
+async function fetchNetworkData() {
+  setLoadStatus('loading', 'CONNECTING');
+  try {
+    const res = await fetch(NETWORK_JSON_URL + '?_=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    graphData = data;
+    setLoadStatus('ok', 'LIVE DATA');
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.add('hidden');
+    setTimeout(() => overlay.style.display='none', 400);
+    renderGraph(data);
+    loadSettingsIntoUI();
+  } catch(err) {
+    setLoadStatus('err', 'FETCH ERROR');
+    const overlay = document.getElementById('loading-overlay');
+    overlay.querySelector('.loading-text').textContent = 'Failed to load network data';
+    overlay.querySelector('.loading-url').textContent = err.message;
+    overlay.querySelector('.loading-spinner').style.borderTopColor = '#ef4444';
+    document.getElementById('node-info').innerHTML =
+      '<p class="info-empty">Could not load network data.<br><br>Check your connection and try reloading.</p>';
+    console.error('GhostLink NetMap: fetch failed', err);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER GRAPH
+// ══════════════════════════════════════════════════════════
+function renderGraph(data) {
+  if(simulation) simulation.stop();
+  document.getElementById('stat-nodes').textContent = data.nodes.length;
+  document.getElementById('stat-edges').textContent = data.edges.length;
+
+  const svg = d3.select('#graph');
+  svg.selectAll('*').remove();
+
+  const container = document.getElementById('graph-container');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  const nodeById = {};
+  data.nodes.forEach(n => { nodeById[n.id] = n; });
+  currentNodeById = nodeById;
+
+  const links = data.edges
+    .filter(e => nodeById[e.source] && nodeById[e.target])
+    .map(e => ({source:e.source, target:e.target, channel:e.channel}));
+  currentLinks = links;
+
+  const communityOf = detectCommunities(data.nodes, links);
+  currentCommunityOf = communityOf;
+  data.nodes.forEach(n => { n.community = communityOf[n.id] ?? 0; });
+
+  const numComm = new Set(Object.values(communityOf)).size;
+  document.getElementById('stat-communities').textContent = numComm;
+
+  const maxMembers = d3.max(data.nodes, n => n.member_count || 1) || 1;
+  const rScale = d3.scaleSqrt().domain([0,maxMembers]).range([S.rMin, S.rMax]);
+  const chargeScale = d3.scaleSqrt().domain([0,maxMembers]).range([S.chargeMin, S.chargeMax]);
+
+  function isIntra(e) {
+    const s = typeof e.source==='object'?e.source.id:e.source;
+    const t = typeof e.target==='object'?e.target.id:e.target;
+    return communityOf[s] === communityOf[t];
+  }
+
+  const g = svg.append('g');
+  zoom = d3.zoom().scaleExtent([0.04, 8]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  const defs = svg.append('defs');
+  if (S.showArrows) {
+    defs.append('marker')
+      .attr('id','arrow').attr('viewBox','0 -4 8 8').attr('refX',10)
+      .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+      .append('path').attr('d','M0,-4L8,0L0,4').attr('fill','rgba(110,203,255,0.2)');
+  }
+
+  hullLayer = g.append('g').attr('class','hull-layer');
+
+  linkSel = g.append('g').selectAll('.link')
+    .data(links).enter().append('line')
+    .attr('class', d => 'link'+(S.intraBright&&isIntra(d)?' intra':''))
+    .attr('stroke-opacity', d => S.intraBright&&isIntra(d) ? S.linkOpacity : S.linkOpacity*0.5)
+    .attr('marker-end', S.showArrows ? 'url(#arrow)' : null);
+
+  const nodeData = data.nodes.map(n => ({
+    ...n, r:rScale(n.member_count||1), community:communityOf[n.id]??0
+  }));
+  currentNodeData = nodeData;
+
+  let _dragMoved = false, _dragStartX = 0, _dragStartY = 0;
+
+  nodeSel = g.append('g').selectAll('.node')
+    .data(nodeData).enter().append('g')
+    .attr('class', d => 'node'+(d.status&&d.status!=='ok'?` status-${d.status}`:''))
+    .call(d3.drag()
+      .on('start',(ev,d)=>{
+        _dragMoved=false;
+        _dragStartX=ev.sourceEvent.clientX; _dragStartY=ev.sourceEvent.clientY;
+        document.getElementById('tooltip').style.opacity=0;
+        d.fx=d.x; d.fy=d.y;
+      })
+      .on('drag', (ev,d)=>{
+        const dx=ev.sourceEvent.clientX-_dragStartX, dy=ev.sourceEvent.clientY-_dragStartY;
+        if(!_dragMoved && Math.hypot(dx,dy)>5){
+          _dragMoved=true;
+          document.body.classList.add('dragging');
+          if(!frozen&&!ev.active) simulation.alphaTarget(0.25).restart();
+        }
+        d.fx=ev.x; d.fy=ev.y;
+      })
+      .on('end', (ev,d)=>{
+        document.body.classList.remove('dragging');
+        if(!frozen&&!ev.active) simulation.alphaTarget(0);
+        if(!frozen){d.fx=null;d.fy=null;}
+        if(!_dragMoved){ _activeHighlightId=d.id; showNodeInfo(d,links,nodeById); highlightNode(d.id,links,communityOf); openNodePanel(); }
+      })
+    )
+    .on('mouseover', (ev,d)=>{ if(!_dragMoved) showTooltip(ev,d); })
+    .on('mousemove', ev=>moveTooltip(ev))
+    .on('mouseout',  ()=>{ document.getElementById('tooltip').style.opacity=0; });
+
+  nodeSel.append('circle')
+    .attr('class','hit-area')
+    .attr('r', d => d.r + 10);
+
+  nodeSel.append('circle')
+    .attr('class','main-circle')
+    .attr('r', d => d.r)
+    .attr('fill', d => cc(d.community)+(d.status&&d.status!=='ok'?'12':'22'))
+    .attr('stroke', d => (!d.status||d.status==='ok') ? cc(d.community)+'cc' : STATUS_STROKE[d.status]||'#64748b')
+    .attr('stroke-width', d => d.r>22 ? 2 : 1.5);
+
+  const statusRings = nodeSel.filter(d => d.status&&d.status!=='ok').append('circle')
+    .attr('class','status-ring')
+    .attr('r', d => d.r+5).attr('fill','none')
+    .attr('stroke', d => STATUS_STROKE[d.status]||'#64748b').attr('stroke-width',1)
+    .attr('stroke-dasharray', d => ({captcha:'5 2',forbidden:'5 2',ghost:'3 4',expired:'2 6'})[d.status]||'4 3')
+    .attr('stroke-opacity', 0.55);
+  if (!S.showRing) statusRings.style('display','none');
+
+  const CW=6.5, LH=15, PAD=5;
+  const labelG = nodeSel.append('g').attr('class','label-group');
+  labelG.each(function(d) {
+    d._label = d.name.length>S.labelLen ? d.name.slice(0,S.labelLen-1)+'…' : d.name;
+    d._labelW = d._label.length*CW + PAD*2;
+  });
+  labelG.append('rect').attr('class','label-bg')
+    .attr('x', d=>-d._labelW/2).attr('y', d=>d.r+7)
+    .attr('width', d=>d._labelW).attr('height',LH).attr('rx',3);
+  labelG.append('text').attr('y', d=>d.r+7+LH/2+4).text(d=>d._label);
+  if (!S.showLabels) labelG.style('display','none');
+
+  simulation = d3.forceSimulation(nodeData)
+    .force('link', d3.forceLink(links).id(d=>d.id)
+      .distance(d => isIntra(d) ? S.linkIntraDist : S.linkInterDist)
+      .strength(d => isIntra(d) ? S.linkIntraStr : S.linkInterStr))
+    .force('charge', d3.forceManyBody()
+      .strength(d => chargeScale(d.member_count||0))
+      .distanceMin(15).distanceMax(S.chargeDist))
+    .force('cluster', forceCluster(communityOf, S.clusterStr))
+    .force('collision', d3.forceCollide(d => d.r+S.collisionPad).strength(0.85))
+    .force('x', d3.forceX(W/2).strength(S.centerStr))
+    .force('y', d3.forceY(H/2).strength(S.centerStr))
+    .alphaDecay(S.alphaDecay).velocityDecay(S.velDecay)
+    .on('tick', () => {
+      linkSel
+        .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>{const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y,dist=Math.sqrt(dx*dx+dy*dy)||1;return d.target.x-dx/dist*(d.target.r+2);})
+        .attr('y2',d=>{const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y,dist=Math.sqrt(dx*dx+dy*dy)||1;return d.target.y-dy/dist*(d.target.r+2);});
+      nodeSel.attr('transform', d=>`translate(${d.x},${d.y})`);
+      if (S.showHulls) drawHulls(); else hullLayer.selectAll('*').remove();
+    });
+
+  svg.on('click', (event) => {
+    if (event.target !== svg.node()) return;
+    if(document.getElementById('node-modal').classList.contains('open')) return;
+    clearHighlight();
+  });
+
+  buildColorGrid();
+  buildCommunitiesOverview();
+}
+
+// ══════════════════════════════════════════════════════════
+// HULLS
+// ══════════════════════════════════════════════════════════
+function drawHulls() {
+  if (!hullLayer) return;
+  const byComm={};
+  for (const n of currentNodeData) { const c=n.community; if(!byComm[c]) byComm[c]=[]; byComm[c].push([n.x,n.y]); }
+  const hullData = Object.entries(byComm)
+    .filter(([,pts]) => pts.length >= S.hullMin)
+    .map(([c,pts]) => ({community:+c, hull:d3.polygonHull(pts)}))
+    .filter(d => d.hull);
+  hullSel = hullLayer.selectAll('.hull').data(hullData, d=>d.community);
+  hullSel.enter().append('path').attr('class','hull')
+    .merge(hullSel)
+    .attr('d', d=>'M'+d.hull.map(p=>p.join(',')).join('L')+'Z')
+    .attr('fill', d=>cc(d.community)).attr('stroke', d=>cc(d.community))
+    .attr('fill-opacity', S.hullOpacity).attr('stroke-opacity', S.hullOpacity*6);
+  hullSel.exit().remove();
+}
+
+// ══════════════════════════════════════════════════════════
+// LIVE VISUAL APPLY
+// ══════════════════════════════════════════════════════════
+function applyVisualSettings() {
+  if (!nodeSel) return;
+  nodeSel.selectAll('.label-group').style('display', S.showLabels ? null : 'none');
+  nodeSel.selectAll('.status-ring').style('display', S.showRing ? null : 'none');
+  if (!S.showHulls) { if(hullLayer) hullLayer.selectAll('*').remove(); }
+  if (linkSel) linkSel.attr('marker-end', S.showArrows ? 'url(#arrow)' : null);
+  if (linkSel) {
+    linkSel.attr('stroke-opacity', function(d) {
+      const s=typeof d.source==='object'?d.source.id:d.source;
+      const t=typeof d.target==='object'?d.target.id:d.target;
+      const intra = currentCommunityOf[s]===currentCommunityOf[t];
+      return S.intraBright && intra ? S.linkOpacity : S.linkOpacity*0.5;
+    });
+    linkSel.attr('class', function(d) {
+      const s=typeof d.source==='object'?d.source.id:d.source;
+      const t=typeof d.target==='object'?d.target.id:d.target;
+      const intra = currentCommunityOf[s]===currentCommunityOf[t];
+      return 'link' + (S.intraBright && intra ? ' intra' : '');
+    });
+  }
+  if (hullSel) {
+    hullSel.attr('fill-opacity', S.hullOpacity)
+           .attr('stroke-opacity', S.hullOpacity*6);
+  }
+  if (S.labelLen !== undefined) {
+    const CW=6.5, PAD=5;
+    nodeSel.selectAll('.label-group').each(function(d) {
+      d._label = d.name.length>S.labelLen ? d.name.slice(0,S.labelLen-1)+'…' : d.name;
+      d._labelW = d._label.length*CW+PAD*2;
+      d3.select(this).select('text').text(d._label);
+      d3.select(this).select('rect').attr('x',-d._labelW/2).attr('width',d._labelW);
+    });
+  }
+  if (S.showHulls) drawHulls();
+}
+
+function applyColorsLive() {
+  if (!nodeSel) return;
+  nodeSel.selectAll('.main-circle')
+    .attr('fill', d=>cc(d.community)+(d.status&&d.status!=='ok'?'12':'22'))
+    .attr('stroke', d=>(!d.status||d.status==='ok') ? cc(d.community)+'cc' : STATUS_STROKE[d.status]||'#64748b');
+  if (hullLayer) drawHulls();
+  buildColorGrid();
+  buildCommunitiesOverview();
+}
+
+// ══════════════════════════════════════════════════════════
+// COMMUNITY COLOR GRID
+// ══════════════════════════════════════════════════════════
+function buildColorGrid() {
+  const grid = document.getElementById('comm-colors-grid');
+  const numComm = new Set(Object.values(currentCommunityOf)).size;
+  if (!graphData || numComm===0) {
+    grid.innerHTML = '<p id="no-communities-msg">Loading graph…</p>';
+    return;
+  }
+  const commNodes={};
+  (graphData.nodes||[]).forEach(n => {
+    const c = n.community ?? currentCommunityOf[n.id] ?? 0;
+    if (!commNodes[c]) commNodes[c]=[];
+    commNodes[c].push(n.name);
+  });
+  grid.innerHTML='';
+  const comms = [...new Set(Object.values(currentCommunityOf))].sort((a,b)=>a-b);
+  comms.forEach(idx => {
+    const col = cc(idx);
+    const names = (commNodes[idx]||[]).slice(0,2).join(', ') + (commNodes[idx]?.length>2?'…':'');
+    const row = document.createElement('div');
+    row.className='comm-color-row';
+    const swatch=document.createElement('input');
+    swatch.type='color'; swatch.className='comm-color-swatch';
+    swatch.value=col.length===7?col:'#6ecbff';
+    swatch.title=`Community ${idx+1}`;
+    swatch.addEventListener('input',()=>{ customColors[idx]=swatch.value; applyColorsLive(); });
+    const label=document.createElement('div');
+    label.className='comm-color-label'; label.title=names;
+    label.innerHTML=`<span style="color:${col}">C${idx+1}</span> <span style="font-size:9px;opacity:.6">${names||'—'}</span>`;
+    const resetBtn=document.createElement('button');
+    resetBtn.className='comm-color-reset'; resetBtn.title='Reset'; resetBtn.textContent='↺';
+    resetBtn.addEventListener('click',()=>{ delete customColors[idx]; applyColorsLive(); buildColorGrid(); });
+    row.appendChild(swatch); row.appendChild(label); row.appendChild(resetBtn);
+    grid.appendChild(row);
+  });
+}
+
+document.getElementById('btn-reset-all-colors').addEventListener('click',()=>{ customColors={}; applyColorsLive(); });
+
+// ══════════════════════════════════════════════════════════
+// COMMUNITIES OVERVIEW
+// ══════════════════════════════════════════════════════════
+function buildCommunitiesOverview() {
+  const list = document.getElementById('comm-list');
+  if (!graphData) { list.innerHTML='<p style="color:var(--text-dim);font-size:11px;padding:20px;text-align:center;">Load graph data to view communities.</p>'; return; }
+
+  const commNodes={}, commEdgesCount={};
+  const comms = [...new Set(Object.values(currentCommunityOf))].sort((a,b)=>a-b);
+  comms.forEach(c=>{ commNodes[c]=[]; commEdgesCount[c]=0; });
+  (graphData.nodes||[]).forEach(n=>{
+    const c = n.community ?? currentCommunityOf[n.id] ?? 0;
+    if(commNodes[c]) commNodes[c].push(n);
+  });
+  currentLinks.forEach(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    const cs=currentCommunityOf[s], ct=currentCommunityOf[t];
+    if(cs===ct&&commEdgesCount[cs]!==undefined) commEdgesCount[cs]++;
+  });
+
+  list.innerHTML='';
+  comms.forEach(idx=>{
+    const col=cc(idx);
+    const nodes=commNodes[idx]||[];
+    const edgeCount=commEdgesCount[idx]||0;
+    const totalMembers=nodes.reduce((s,n)=>s+(n.member_count||0),0);
+    const card=document.createElement('div');
+    card.className='comm-card';
+    card.innerHTML=`
+      <div class="comm-card-header">
+        <div class="comm-card-dot" style="background:${col};box-shadow:0 0 6px ${col}60"></div>
+        <div class="comm-card-name" style="color:${col}">CLUSTER ${idx+1}</div>
+      </div>
+      <div class="comm-card-stats">
+        <div class="comm-card-stat"><b>${nodes.length}</b>nodes</div>
+        <div class="comm-card-stat"><b>${edgeCount}</b>edges</div>
+        <div class="comm-card-stat"><b>${totalMembers.toLocaleString()}</b>members</div>
+      </div>
+      <div class="comm-nodes-preview">
+        ${nodes.slice(0,6).map(n=>`<span class="comm-node-tag" style="border-color:${col}40;color:${col}99">${n.name.length>18?n.name.slice(0,17)+'…':n.name}</span>`).join('')}
+        ${nodes.length>6?`<span class="comm-node-tag" style="color:var(--text-dim)">+${nodes.length-6} more</span>`:''}
+      </div>
+    `;
+    card.addEventListener('click',()=>{
+      if(nodeSel){
+        nodeSel.selectAll('circle').attr('stroke-opacity',d=>d.community===idx?1:0.06).attr('fill-opacity',d=>d.community===idx?1:0.04);
+        nodeSel.selectAll('.label-group').attr('opacity',d=>d.community===idx?1:0.06);
+        if(hullSel) hullSel.attr('opacity',d=>d.community===idx?1:0.05);
+        linkSel.classed('highlighted',l=>{
+          const s=typeof l.source==='object'?l.source.id:l.source;
+          const t=typeof l.target==='object'?l.target.id:l.target;
+          return currentCommunityOf[s]===idx&&currentCommunityOf[t]===idx;
+        });
+      }
+    });
+    list.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════
+function showTooltip(ev,d) {
+  const tip=document.getElementById('tooltip');
+  const sc={ok:'#6ecbff',captcha:'#f59e0b',forbidden:'#ef4444',ghost:'#64748b',expired:'#475569'}[d.status]||'#64748b';
+  const commColor=cc(d.community);
+  const inv=d.invite
+    ?`<a class="t-invite" href="${d.invite}" target="_blank">&#x2197; ${d.invite}</a>`
+    :`<span class="t-invite none">No invite recorded</span>`;
+  tip.innerHTML=`<strong>${d.name}</strong>
+    <span class="t-community" style="color:${commColor}">Community ${d.community+1}</span>
+    <span class="t-status" style="color:${sc}">${d.status||'unknown'}</span>
+    <span class="t-row"><b>${(d.member_count||0).toLocaleString()}</b> members</span>${inv}`;
+  tip.style.opacity=1; moveTooltip(ev);
+}
+function moveTooltip(ev) {
+  const tip=document.getElementById('tooltip');
+  tip.style.left=Math.min(ev.pageX+14,window.innerWidth-tip.offsetWidth-16)+'px';
+  tip.style.top=Math.min(ev.pageY-10,window.innerHeight-tip.offsetHeight-16)+'px';
+}
+
+// ══════════════════════════════════════════════════════════
+// NODE PANEL
+// ══════════════════════════════════════════════════════════
+let _activeHighlightId = null;
+
+function openNodePanel() {
+  document.getElementById('node-modal').classList.add('open');
+}
+function closeNodePanel() {
+  document.getElementById('node-modal').classList.remove('open');
+}
+function clearHighlight() {
+  _activeHighlightId = null;
+  document.getElementById('node-info').innerHTML='<p class="info-empty">Click a node to inspect it.</p>';
+  document.getElementById('node-community-badge').textContent='';
+  if(!linkSel) return;
+  linkSel.classed('highlighted',false);
+  nodeSel.selectAll('circle').attr('stroke-opacity',null).attr('fill-opacity',null);
+  nodeSel.selectAll('.label-group').attr('opacity',null);
+  if(hullSel) hullSel.attr('opacity',null);
+}
+document.getElementById('node-panel-close').addEventListener('click',closeNodePanel);
+document.getElementById('node-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('node-modal')) closeNodePanel();
+});
+
+// ══════════════════════════════════════════════════════════
+// HIGHLIGHT
+// ══════════════════════════════════════════════════════════
+function highlightNode(id,links,communityOf) {
+  const connected=new Set([id]);
+  links.forEach(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    if(s===id) connected.add(t); if(t===id) connected.add(s);
+  });
+  linkSel.classed('highlighted',l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    return s===id||t===id;
+  });
+  nodeSel.selectAll('circle').attr('stroke-opacity',d=>connected.has(d.id)?1:0.1).attr('fill-opacity',d=>connected.has(d.id)?1:0.06);
+  nodeSel.selectAll('.label-group').attr('opacity',d=>connected.has(d.id)?1:0.1);
+  if(hullSel) hullSel.attr('opacity',d=>[...connected].some(cid=>communityOf[cid]===d.community)?1:0.12);
+}
+
+// ══════════════════════════════════════════════════════════
+// NODE INFO
+// ══════════════════════════════════════════════════════════
+const CONN_PREVIEW = 8;
+
+function buildConnBlock(edges, dir, nodeById) {
+  if (!edges.length) return '';
+  const key = dir==='out' ? 'target' : 'source';
+  const arrow = dir==='out' ? '&#x2192;' : '&#x2190;';
+  const uid = 'conn-' + dir + '-' + Date.now();
+  const renderItems = (list) => list.map(e => {
+    const nid = typeof e[key]==='object' ? e[key].id : e[key];
+    const nn = nodeById?.[nid];
+    const nc = nn ? cc(nn.community??0) : '#aaa';
+    return `<div class="conn-item" onclick="focusNode('${nid}')"><span style="color:${nc}">${arrow}</span><span>${nn?nn.name:nid}</span><span style="margin-left:auto;color:var(--text-dim);font-size:9px">#${e.channel||'?'}</span></div>`;
+  }).join('');
+
+  const preview = edges.slice(0, CONN_PREVIEW);
+  const rest = edges.slice(CONN_PREVIEW);
+  let h = `<div class="conn-block"><div class="conn-header">${dir==='out'?'Links To':'Linked From'} (${edges.length})</div>`;
+  h += renderItems(preview);
+  if (rest.length) {
+    h += `<div id="${uid}-more" style="display:none">${renderItems(rest)}</div>`;
+    h += `<button class="conn-more-btn" id="${uid}-btn" onclick="
+      var m=document.getElementById('${uid}-more'),b=document.getElementById('${uid}-btn');
+      var open=m.style.display!=='none';
+      m.style.display=open?'none':'block';
+      b.textContent=open?'&#x25BC; Show ${rest.length} more':'&#x25B2; Show less';
+    ">&#x25BC; Show ${rest.length} more</button>`;
+  }
+  return h + '</div>';
+}
+
+function showNodeInfo(node,links,nodeById) {
+  const panel=document.getElementById('node-info');
+  const badge=document.getElementById('node-community-badge');
+  if (!node) { panel.innerHTML='<p class="info-empty">Click a node to inspect it.</p>'; badge.textContent=''; return; }
+  const sc={ok:'#6ecbff',captcha:'#f59e0b',forbidden:'#ef4444',ghost:'#64748b',expired:'#334155'}[node.status]||'#64748b';
+  const commColor=cc(node.community);
+  badge.innerHTML=`<span style="color:${commColor}">&#x25CF; C${node.community+1}</span>`;
+  const inE=links?links.filter(l=>(typeof l.target==='object'?l.target.id:l.target)===node.id):[];
+  const outE=links?links.filter(l=>(typeof l.source==='object'?l.source.id:l.source)===node.id):[];
+  const R=(label,val)=>`<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${val}</span></div>`;
+  const iconHtml=node.icon?`<img src="${node.icon}" alt="" onerror="this.style.display='none'">` : '&#9672;';
+  let html=`<div class="info-icon-row">`
+    +`<div class="info-server-icon">${iconHtml}</div>`
+    +`<div class="info-server-name-col"><div class="info-name" style="color:${commColor};margin-bottom:0">${node.name}</div>`
+    +`<div style="font-size:9px;color:${sc};letter-spacing:.08em;text-transform:uppercase;margin-top:4px">${node.status||'unknown'}</div>`
+    +`</div></div>`;
+  if (node.description) html+=`<div class="info-description">${node.description}</div>`;
+  html+=R('Members',(node.member_count||0).toLocaleString());
+  html+=R('In-links',inE.length); html+=R('Out-links',outE.length);
+  if (node.invite) html+=R('Invite',`<a class="invite-link" href="${node.invite}" target="_blank">${node.invite}</a>`);
+  if (node.discovered_at) html+=R('Found',new Date(node.discovered_at).toLocaleString());
+  const hasIps  = Array.isArray(node.ips)  && node.ips.length  > 0;
+  const hasUrls = Array.isArray(node.urls) && node.urls.length > 0;
+  if (hasIps||hasUrls) {
+    html+='<div class="data-btns">';
+    if (hasIps)  html+=`<button class="view-data-btn ip-btn"  onclick='openDataModal("ips",${JSON.stringify(node.ips)})'>[IP] View IPs (${node.ips.length})</button>`;
+    if (hasUrls) html+=`<button class="view-data-btn url-btn" onclick='openDataModal("urls",${JSON.stringify(node.urls)})'>[URL] View Links (${node.urls.length})</button>`;
+    html+='</div>';
+  }
+  html += buildConnBlock(outE,'out',nodeById) + buildConnBlock(inE,'in',nodeById);
+  panel.innerHTML=html;
+}
+window.focusNode=function(id){
+  if(!nodeSel)return;
+  nodeSel.each(function(d){
+    if(d.id===id){
+      _activeHighlightId=id;
+      showNodeInfo(d,currentLinks,currentNodeById);
+      highlightNode(id,currentLinks,currentCommunityOf);
+      openNodePanel();
+    }
+  });
+};
+
+// ══════════════════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════════════════
+document.getElementById('search').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase(); if(!nodeSel) return;
+  nodeSel.selectAll('circle').attr('stroke-opacity',d=>!q||d.name.toLowerCase().includes(q)?1:0.08);
+  nodeSel.selectAll('.label-group').attr('opacity',d=>!q||d.name.toLowerCase().includes(q)?1:0.08);
+});
+
+// ══════════════════════════════════════════════════════════
+// CONTROLS
+// ══════════════════════════════════════════════════════════
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  if(zoom) d3.select('#graph').transition().duration(600).call(zoom.transform,d3.zoomIdentity);
+});
+document.getElementById('btn-freeze').addEventListener('click',function(){
+  frozen=!frozen; this.textContent=frozen?'UNFREEZE':'FREEZE';
+  if(simulation){frozen?simulation.stop():simulation.restart();}
+});
+document.getElementById('btn-reload').addEventListener('click',()=>{ fetchNetworkData(); });
+
+// ══════════════════════════════════════════════════════════
+// SETTINGS MODAL
+// ══════════════════════════════════════════════════════════
+function fmtVal(v){return Math.abs(v)<1?parseFloat(v).toFixed(3).replace(/\.?0+$/,''):String(v);}
+
+document.querySelectorAll('input[type=range][data-key]').forEach(input=>{
+  const dispId='v-'+input.id.slice(2);
+  const disp=document.getElementById(dispId);
+  input.addEventListener('input',()=>{ if(disp) disp.textContent=fmtVal(input.value); checkRestartWarning(); });
+});
+
+document.querySelectorAll('.toggle[data-key]').forEach(el=>{
+  el.addEventListener('click',()=>{ el.classList.toggle('on'); checkRestartWarning(); });
+});
+
+document.querySelectorAll('.stab').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+    if(this.dataset.tab==='communities-overview') buildCommunitiesOverview();
+  });
+});
+
+function readPendingFromUI(){
+  P={...S};
+  document.querySelectorAll('input[type=range][data-key]').forEach(input=>{P[input.dataset.key]=parseFloat(input.value);});
+  document.querySelectorAll('.toggle[data-key]').forEach(el=>{P[el.dataset.key]=el.classList.contains('on');});
+}
+function checkRestartWarning(){
+  readPendingFromUI();
+  const needsRestart=Object.keys(P).some(k=>PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+  document.getElementById('restart-warn').classList.toggle('visible',needsRestart&&!!graphData);
+}
+function loadSettingsIntoUI(){
+  document.querySelectorAll('input[type=range][data-key]').forEach(input=>{
+    input.value=S[input.dataset.key];
+    const disp=document.getElementById('v-'+input.id.slice(2));
+    if(disp) disp.textContent=fmtVal(S[input.dataset.key]);
+  });
+  document.querySelectorAll('.toggle[data-key]').forEach(el=>{el.classList.toggle('on',!!S[el.dataset.key]);});
+  document.getElementById('restart-warn').classList.remove('visible');
+}
+
+document.getElementById('btn-settings').addEventListener('click',()=>{
+  loadSettingsIntoUI(); buildColorGrid(); buildCommunitiesOverview();
+  document.getElementById('settings-modal').classList.add('open');
+});
+['settings-close','s-btn-close'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>document.getElementById('settings-modal').classList.remove('open'));
+});
+document.getElementById('settings-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('settings-modal')) document.getElementById('settings-modal').classList.remove('open');
+});
+document.getElementById('s-btn-apply').addEventListener('click',()=>{
+  readPendingFromUI();
+  const needsRestart=Object.keys(P).some(k=>PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+  const visualChanged=Object.keys(P).some(k=>!PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+  S={...P};
+  if(needsRestart&&graphData){ document.getElementById('settings-modal').classList.remove('open'); renderGraph(graphData); }
+  else { if(visualChanged) applyVisualSettings(); document.getElementById('settings-modal').classList.remove('open'); }
+});
+document.getElementById('s-btn-reset-defaults').addEventListener('click',()=>{
+  S={...DEFAULTS}; P={...DEFAULTS}; loadSettingsIntoUI();
+});
+
+// ══════════════════════════════════════════════════════════
+// EXPORT MODAL
+// ══════════════════════════════════════════════════════════
+let exportFilter='all';
+function buildExportList(filter){
+  if(!graphData) return [];
+  return graphData.nodes.filter(n=>n.invite&&(filter==='all'||n.status===filter)).sort((a,b)=>(b.member_count||0)-(a.member_count||0)).map(n=>n.invite);
+}
+function refreshExport(){
+  const list=buildExportList(exportFilter);
+  document.getElementById('export-textarea').value=list.join('\n');
+  document.getElementById('export-count').textContent=`${list.length} link${list.length!==1?'s':''}`;
+}
+document.getElementById('btn-export').addEventListener('click',()=>{
+  if(!graphData){alert('Network data not yet loaded.');return;}
+  refreshExport(); document.getElementById('export-modal').classList.add('open');
+});
+document.getElementById('export-close').addEventListener('click',()=>document.getElementById('export-modal').classList.remove('open'));
+document.getElementById('export-modal').addEventListener('click',e=>{ if(e.target===document.getElementById('export-modal')) document.getElementById('export-modal').classList.remove('open'); });
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active'); exportFilter=this.dataset.status; refreshExport();
+  });
+});
+document.getElementById('btn-copy-list').addEventListener('click',function(){
+  const val=document.getElementById('export-textarea').value; if(!val) return;
+  navigator.clipboard.writeText(val).then(()=>{ this.textContent='COPIED!'; this.classList.add('copied'); setTimeout(()=>{this.textContent='COPY ALL';this.classList.remove('copied');},2000); });
+});
+document.getElementById('btn-download-list').addEventListener('click',()=>{
+  const val=document.getElementById('export-textarea').value; if(!val) return;
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([val],{type:'text/plain'})),download:`ghostlink-invites-${exportFilter}-${Date.now()}.txt`}).click();
+});
+
+// ══════════════════════════════════════════════════════════
+// DATA MODAL
+// ══════════════════════════════════════════════════════════
+let _modalData=[], _modalType='ips';
+function openDataModal(type, data) {
+  _modalType=type; _modalData=data||[];
+  document.getElementById('data-title').textContent = type==='ips'?'BYOD / SERVER IPs':'WEBSITE LINKS';
+  document.getElementById('data-search').value='';
+  _renderDataList(_modalData);
+  document.getElementById('data-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('data-search').focus(),60);
+}
+function closeDataModal() {
+  document.getElementById('data-modal').classList.remove('open');
+}
+function _renderDataList(items) {
+  const list=document.getElementById('data-list');
+  const count=document.getElementById('data-count');
+  count.textContent=items.length+' item'+(items.length!==1?'s':'');
+  if (!items.length){list.innerHTML='<div class="data-empty">No items match your filter.</div>';return;}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  list.innerHTML=items.map(item=>{
+    if (_modalType==='ips'){
+      const ct=item.count>1?'<span class="data-item-count">x'+item.count+'</span>':'';
+      return '<div class="data-item">'+ct+'<div class="data-item-main">'+esc(item.ip||'')+'<div class="data-item-ch">#'+esc(item.channel||'')+'</div></div></div>';
+    } else {
+      const u=esc(item.url||'');
+      return '<div class="data-item"><div class="data-item-main"><a href="'+u+'" target="_blank" rel="noopener">'+u+'</a><div class="data-item-ch">#'+esc(item.channel||'')+'</div></div></div>';
+    }
+  }).join('');
+}
+document.getElementById('data-search').addEventListener('input',function(e){
+  const q=e.target.value.toLowerCase();
+  const filtered=!q?_modalData:_modalData.filter(item=>{
+    const main=(_modalType==='ips'?(item.ip||''):(item.url||'')).toLowerCase();
+    return main.includes(q)||(item.channel||'').toLowerCase().includes(q);
+  });
+  _renderDataList(filtered);
+});
+document.getElementById('data-modal').addEventListener('click',function(e){if(e.target===this) closeDataModal();});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    if(document.getElementById('data-modal').classList.contains('open')) closeDataModal();
+    else if(document.getElementById('node-modal').classList.contains('open')) closeNodePanel();
+    else if(document.getElementById('settings-modal').classList.contains('open')) document.getElementById('settings-modal').classList.remove('open');
+    else clearHighlight();
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+fetchNetworkData();
+</script>
+</body>
+</html>
