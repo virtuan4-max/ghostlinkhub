@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostLink</title>
-    <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/assets/favicon.png">
-    <!--- Supabase for online users + total visits --->
-    <script src="https://unpkg.com/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+    <!--- Supabase for total visits --->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js" defer></script>
     <script type="module">
         import * as BareMux from "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs";
@@ -45,7 +44,7 @@
                 frame.removeAttribute('src');
                 let rawHtml = targetUrl.startsWith('data:') ? decodeURIComponent(targetUrl.split(',')[1]) : targetUrl;
                 frame.srcdoc = injectThemeScript(rawHtml);
-                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                 return;
             }
 
@@ -64,7 +63,7 @@
                         return response.text();
                     })
                     .then(htmlContent => {
-                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                         frame.srcdoc = injectThemeScript(htmlContent);
                     })
                     .catch(err => {
@@ -1174,39 +1173,42 @@
           display: flex;
           flex-direction: column;
           background: var(--bg);
+          overflow: hidden;
+          min-width: 0;
         }
 
         /* ── BROWSER TABS ROW ── */
         .browser-tabs {
           display: flex;
-          align-items: center;
-          padding: 12px 16px 0;
-          gap: 6px;
+          align-items: flex-end;
+          padding: 6px 16px 0;
+          gap: 4px;
           background: var(--bg);
           border-bottom: 1px solid var(--border);
           flex-shrink: 0;
-          overflow-x: auto;
-          scrollbar-width: none;
-          min-height: 68px;
+          overflow: hidden;
+          min-height: 44px;
+          box-sizing: border-box;
         }
-        .browser-tabs::-webkit-scrollbar { display: none; }
 
         .tab {
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 10px 22px 10px 16px;
-          min-width: 180px;
-          max-width: 280px;
+          gap: 8px;
+          padding: 8px 8px 8px 12px;
+          flex: 1 1 160px;
+          min-width: 40px;
+          max-width: 200px;
           background: transparent;
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          border: 1px solid var(--border);
           border-bottom: none;
-          border-radius: 10px 10px 0 0;
+          border-radius: 8px 8px 0 0;
           cursor: pointer;
-          transition: 0.2s;
+          transition: background 0.15s, border-color 0.15s;
           font-family: var(--font);
           position: relative;
-          flex-shrink: 0;
+          user-select: none;
+          overflow: hidden;
         }
         .tab:hover {
           background: rgba(255, 255, 255, 0.05);
@@ -1216,6 +1218,10 @@
           background: rgba(255, 255, 255, 0.05);
           border-color: var(--accent);
           border-bottom-color: var(--bg);
+        }
+        .tab.drag-over {
+          border-color: var(--accent);
+          opacity: 0.7;
         }
         .tab.active::before {
           content: '';
@@ -1282,11 +1288,26 @@
           align-items: center;
           justify-content: center;
           font-family: var(--font);
+          align-self: center;
+          margin-bottom: 4px;
+        }
+        .new-tab svg {
+          stroke: var(--text-dim);
+          transition: stroke 0.2s;
+          pointer-events: none;
+        }
+        .new-tab:disabled {
+          opacity: 0.25;
+          cursor: not-allowed;
+          pointer-events: none;
         }
         .new-tab:hover {
           border-color: var(--accent);
           color: var(--accent);
           box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .new-tab:hover svg {
+          stroke: var(--accent);
         }
 
         /* ── NAV BAR ── */
@@ -1314,6 +1335,14 @@
           font-size: 13px;
           font-family: var(--font);
           flex-shrink: 0;
+        }
+        .proxy-nav button svg {
+          stroke: var(--text-dim);
+          transition: stroke 0.2s;
+          pointer-events: none;
+        }
+        .proxy-nav button:hover svg {
+          stroke: var(--accent);
         }
         .proxy-nav button:hover {
           border-color: var(--accent);
@@ -1747,11 +1776,14 @@
           overflow: hidden !important;
           flex-direction: column !important;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
         #proxy-app {
           display: flex;
           flex: 1;
           width: 100%;
           height: 100%;
+          overflow: hidden;
+          min-width: 0;
         }
         /* --- END PROXY CSS --- */
 
@@ -1791,7 +1823,7 @@
             <div class="hero">
                 <h1>Welcome to<br><span id="typewriter"></span></h1>
                 <p class="subtitle" style="color: var(--text-dim); margin-top: 10px;">
-                    GhostLink Network // <span class="online-count-val" id="online-count">...</span> <span class="online-dot">•</span><span class="total-visits-display" id="total-visits">...</span>
+                    GhostLink Network // <span class="total-visits-display" id="total-visits" style="font-size:1em; opacity:1; margin-left:0;">...</span>
                 </p>
                 <button class="btn-start" onclick="nav(document.getElementById('init-target-select')?.value || 'games')">INITIALIZE SYSTEMS</button>
             </div>
@@ -1867,8 +1899,12 @@
                         <input type="text" id="cloak-title" placeholder="New Tab" oninput="applyCloak()">
                     </div>
                     <div class="input-group">
-                        <label>Favicon URL</label>
-                        <input type="text" id="cloak-icon" placeholder="https://google.com/favicon.ico" oninput="applyCloak()">
+                        <label>Website URL</label>
+                        <input type="text" id="cloak-icon" placeholder="https://youtube.com" oninput="applyCloak()">
+                    </div>
+                    <div style="display:flex; gap:8px; margin-bottom: 16px;">
+                        <button class="btn-small" onclick="resetToDefaultCloak()" style="flex:1; border-color: rgba(110,203,255,0.3);">↺ RESET TO DEFAULT</button>
+                        <button class="btn-small" onclick="saveAsPreset()" style="flex:1; border-color: rgba(110,203,255,0.3);">＋ SAVE AS PRESET</button>
                     </div>
                     <label>Presets</label>
                     <div class="preset-container" id="preset-list"></div>
@@ -2380,14 +2416,18 @@
     .shortcut-icon img {
       width: 24px;
       height: 24px;
-      filter: brightness(0) invert(1);
       opacity: 0.7;
       transition: 0.2s;
     }
-    .shortcut:hover .shortcut-icon img {
-      opacity: 1;
-      filter: brightness(0) saturate(100%) invert(77%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(105%);
+    .shortcut:hover .shortcut-icon img { opacity: 1; }
+    .shortcut-svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--text-dim);
+      stroke: none;
+      transition: fill 0.2s;
     }
+    .shortcut:hover .shortcut-svg { fill: var(--accent); }
     .shortcut-icon i { color: var(--accent); font-size: 18px; }
     .shortcut-label {
       font-family: var(--font);
@@ -2631,6 +2671,15 @@
         window.location.href = url;
       }
     }
+    (function() {
+      const saved = localStorage.getItem('gl_search_engine');
+      const sel = document.getElementById('engine');
+      if (saved) {
+        const opt = [...sel.options].find(o => o.value === saved);
+        if (opt) sel.value = saved;
+      }
+      sel.addEventListener('change', () => localStorage.setItem('gl_search_engine', sel.value));
+    })();
     document.getElementById('searchForm').onsubmit = e => {
       e.preventDefault();
       const q = document.getElementById('searchInput').value.trim();
@@ -2640,12 +2689,12 @@
       navigate(isUrl ? (/^https?:\/\//.test(q) ? q : 'https://' + q) : engine + encodeURIComponent(q));
     };
     const DEFAULT_SHORTCUTS = [
-      { label: 'YouTube', url: 'https://youtube.com', icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg' },
-      { label: 'GitHub',  url: 'https://github.com',  icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg' },
-      { label: 'Discord', url: 'https://discord.com', icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg' },
-      { label: 'Twitter', url: 'https://twitter.com', icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/x.svg' },
-      { label: 'Reddit',  url: 'https://reddit.com',  icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/reddit.svg' },
-      { label: 'Instagram', url: 'https://instagram.com', icon: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg' },
+      { label: 'YouTube',   url: 'https://youtube.com',   viewBox: '0 0 16 16', svg: '<path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.01 2.01 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.01 2.01 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31 31 0 0 1 0 7.68v-.123c.002-.215.01-.958.064-1.778l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.01 2.01 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A100 100 0 0 1 7.858 2zM6.4 5.209v4.818l4.157-2.408z"/>' },
+      { label: 'GitHub',    url: 'https://github.com',    viewBox: '0 0 24 24', svg: '<path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>' },
+      { label: 'Discord',   url: 'https://discord.com',   viewBox: '0 0 24 24', svg: '<path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>' },
+      { label: 'Twitter',   url: 'https://twitter.com',   viewBox: '0 0 24 24', svg: '<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.259 5.633L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>' },
+      { label: 'Reddit',    url: 'https://reddit.com',    viewBox: '0 0 16 16', svg: '<path d="M6.167 8a.83.83 0 0 0-.83.83c0 .459.372.84.83.831a.831.831 0 0 0 0-1.661m1.843 3.647c.315 0 1.403-.038 1.976-.611a.23.23 0 0 0 0-.306.213.213 0 0 0-.306 0c-.353.363-1.126.487-1.67.487-.545 0-1.308-.124-1.671-.487a.213.213 0 0 0-.306 0 .213.213 0 0 0 0 .306c.564.563 1.652.61 1.977.61zm.992-2.807c0 .458.373.83.831.83s.83-.381.83-.83a.831.831 0 0 0-1.66 0z"/><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.828-1.165c-.315 0-.602.124-.812.325-.801-.573-1.9-.945-3.121-.993l.534-2.501 1.738.372a.83.83 0 1 0 .83-.869.83.83 0 0 0-.744.468l-1.938-.41a.2.2 0 0 0-.153.028.2.2 0 0 0-.086.134l-.592 2.788c-1.24.038-2.358.41-3.17.992-.21-.2-.496-.324-.81-.324a1.163 1.163 0 0 0-.478 2.224q-.03.17-.029.353c0 1.795 2.091 3.256 4.669 3.256s4.668-1.451 4.668-3.256c0-.114-.01-.238-.029-.353.401-.181.688-.592.688-1.069 0-.65-.525-1.165-1.165-1.165"/>' },
+      { label: 'Instagram', url: 'https://instagram.com', viewBox: '0 0 16 16', svg: '<path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.919c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334"/>' },
     ];
     function getShortcuts() {
       try { return JSON.parse(localStorage.getItem('gl_shortcuts') || 'null') || DEFAULT_SHORTCUTS; }
@@ -2659,11 +2708,12 @@
         const el = document.createElement('div');
         el.className = 'shortcut';
         el.style.animationDelay = (i * 0.04 + 0.04) + 's';
+        // Use inline SVG if available (default shortcuts), else fall back to <img> for user-added favicons
+        const iconHtml = s.svg
+          ? `<svg viewBox="${s.viewBox || '0 0 24 24'}" fill="currentColor" stroke="none" class="shortcut-svg">${s.svg}</svg>`
+          : `<img src="${s.icon}" onerror="this.style.display='none'">`;
         el.innerHTML = `
-          <div class="shortcut-icon">
-            <img src="${s.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <i class="fa-solid fa-link" style="display:none"></i>
-          </div>
+          <div class="shortcut-icon">${iconHtml}</div>
           <span class="shortcut-label">${s.label}</span>`;
         el.onclick = () => navigate(s.url);
         container.appendChild(el);
@@ -2769,17 +2819,17 @@
         let words = JSON.parse(localStorage.getItem('ghostlink_words')) || DEFAULT_WORDS.slice();
 
         const tabPresets = [
-            { name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
-            { name: "Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
-            { name: "Classroom", title: "Classes", icon: "https://www.gstatic.com/classroom/favicon.png" },
-            { name: "Blooket", title: "Blooket", icon: "https://ac.blooket.com/dashboard/favicon.ico" },
-            { name: "Desmos", title: "Desmos | Graphing Calculator", icon: "https://www.desmos.com/favicon.ico" },
-            { name: "Canvas", title: "Dashboard", icon: "https://du11hjcvx0uqb.cloudfront.net/br/dist/images/favicon-e10d657a73.ico" },
-            { name: "Khan Academy", title: "Khan Academy", icon: "https://www.khanacademy.org/favicon.ico" },
-            { name: "Wikipedia", title: "Wikipedia, the free encyclopedia", icon: "https://en.wikipedia.org/static/favicon/wikipedia.ico" },
-            { name: "Docs", title: "Google Docs", icon: "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico" },
-            { name: "Edpuzzle", title: "Edpuzzle", icon: "https://edpuzzle.imgix.net/favicons/favicon-32.png" },
-            { name: "about:blank", title: "about:blank", icon: "https://www.none" }
+            { name: "Google",       title: "Google",                          icon: "https://www.google.com/s2/favicons?domain=google.com&sz=32" },
+            { name: "Drive",        title: "My Drive - Google Drive",         icon: "https://www.google.com/s2/favicons?domain=drive.google.com&sz=32" },
+            { name: "Classroom",    title: "Classes",                         icon: "https://www.google.com/s2/favicons?domain=classroom.google.com&sz=32" },
+            { name: "Blooket",      title: "Blooket",                         icon: "https://www.google.com/s2/favicons?domain=blooket.com&sz=32" },
+            { name: "Desmos",       title: "Desmos | Graphing Calculator",    icon: "https://www.google.com/s2/favicons?domain=desmos.com&sz=32" },
+            { name: "Canvas",       title: "Dashboard",                       icon: "https://www.google.com/s2/favicons?domain=instructure.com&sz=32" },
+            { name: "Khan Academy", title: "Khan Academy",                    icon: "https://www.google.com/s2/favicons?domain=khanacademy.org&sz=32" },
+            { name: "Wikipedia",    title: "Wikipedia, the free encyclopedia",icon: "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=32" },
+            { name: "Docs",         title: "Google Docs",                     icon: "https://www.google.com/s2/favicons?domain=docs.google.com&sz=32" },
+            { name: "Edpuzzle",     title: "Edpuzzle",                        icon: "https://www.google.com/s2/favicons?domain=edpuzzle.com&sz=32" },
+            { name: "about:blank",  title: "about:blank",                     icon: "" }
         ];
 
         const svgLibrary = [
@@ -2831,19 +2881,34 @@
         // --- SUPABASE SETUP 
         const SUPABASE_URL = 'https://npvjxyxnmdcncupbwdsx.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdmp4eXhubWRjbmN1cGJ3ZHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTU0MjcsImV4cCI6MjA4Mjg3MTQyN30.hZhxWo1iR8O0r66vIeElcsPy1PljtpJ_dEbAOvhrr1Q';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function getSupabaseClient() {
+            if (!window.supabase) { console.error('Supabase not loaded'); return null; }
+            if (!getSupabaseClient._client) {
+                getSupabaseClient._client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+            return getSupabaseClient._client;
+        }
+
         async function initTotalVisits() {
-            const { data, error } = await supabaseClient.rpc('increment_views');
+            const client = getSupabaseClient();
+            if (!client) return;
             const el = document.getElementById('total-visits');
             if (!el) return;
-            if (error) { console.error('Views RPC error:', error); el.textContent = ''; return; }
-            el.textContent = Number(data).toLocaleString() + ' visits';
+            try {
+                const { data, error } = await client.rpc('increment_views');
+                if (error) { console.error('Views RPC error:', error); el.textContent = ''; return; }
+                el.textContent = Number(data).toLocaleString() + ' visits';
+            } catch(e) { console.error('initTotalVisits failed:', e); }
         }
+
         function initOnlineUsers() {
+            const client = getSupabaseClient();
+            if (!client) return;
             const onlineEl = document.getElementById('online-count');
             const sessionKey = 'gl_' + Math.random().toString(36).substr(2, 9);
 
-            const channel = supabaseClient.channel('ghostlink-online', {
+            const channel = client.channel('ghostlink-online', {
                 config: { presence: { key: sessionKey } }
             });
 
@@ -2856,6 +2921,12 @@
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({ online_at: new Date().toISOString() });
+                    // sync event may have already fired before track — read state directly
+                    setTimeout(() => {
+                        const state = channel.presenceState();
+                        const count = Object.keys(state).length;
+                        if (onlineEl) onlineEl.textContent = count.toLocaleString();
+                    }, 500);
                 }
             });
         }
@@ -3618,25 +3689,152 @@
         }
 
         // --- SETTINGS & CLOAKING ---
+        let customPresets = JSON.parse(localStorage.getItem('ghostlink_custom_presets')) || [];
+
+        function renderPresets() {
+            const presetList = document.getElementById('preset-list');
+            if (!presetList) return;
+            presetList.innerHTML = '';
+            tabPresets.forEach((p, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'preset-btn'; btn.innerText = p.name;
+                btn.onclick = () => usePreset(i);
+                presetList.appendChild(btn);
+            });
+            customPresets.forEach((p, i) => {
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'position:relative; display:inline-block;';
+                const btn = document.createElement('div');
+                btn.className = 'preset-btn'; btn.innerText = p.name;
+                btn.style.paddingRight = '22px';
+                btn.onclick = () => useCustomPreset(i);
+                const del = document.createElement('span');
+                del.textContent = '✕';
+                del.style.cssText = 'position:absolute; top:50%; right:6px; transform:translateY(-50%); font-size:0.65rem; color:#ff4444; cursor:pointer; line-height:1;';
+                del.onclick = (e) => { e.stopPropagation(); deleteCustomPreset(i); };
+                wrap.append(btn, del);
+                presetList.appendChild(wrap);
+            });
+        }
+
         function usePreset(index) {
             const p = tabPresets[index];
+            document.getElementById('cloak-title').value = p.title;
+            document.getElementById('cloak-icon').value = p.icon;
+            if (p.name === 'about:blank') {
+                document.title = 'about:blank';
+                document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
+                saveConfig();
+            } else {
+                applyCloak();
+            }
+        }
+
+        function useCustomPreset(index) {
+            const p = customPresets[index];
             document.getElementById('cloak-title').value = p.title;
             document.getElementById('cloak-icon').value = p.icon;
             applyCloak();
         }
 
+        function saveAsPreset() {
+            const title = document.getElementById('cloak-title').value.trim();
+            const icon = document.getElementById('cloak-icon').value.trim();
+            const name = title || icon || 'Preset';
+            if (!title && !icon) return;
+            customPresets.push({ name: name.length > 12 ? name.slice(0, 12) + '…' : name, title, icon });
+            localStorage.setItem('ghostlink_custom_presets', JSON.stringify(customPresets));
+            renderPresets();
+        }
+
+        function deleteCustomPreset(index) {
+            customPresets.splice(index, 1);
+            localStorage.setItem('ghostlink_custom_presets', JSON.stringify(customPresets));
+            renderPresets();
+        }
+
+        const GL_FAVICON = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/assets/favicon.png';
+
+        function applyDataUrlAsFavicon(dataUrl) {
+            document.querySelectorAll("link[rel*='icon']").forEach(function(l) { l.remove(); });
+            var l = document.createElement('link');
+            l.rel = 'icon'; l.type = 'image/png'; l.href = dataUrl;
+            document.head.appendChild(l);
+        }
+
+        function blobToCanvas(blob) {
+            return new Promise(function(resolve, reject) {
+                var objUrl = URL.createObjectURL(blob);
+                var img = new Image();
+                img.onload = function() {
+                    var c = document.createElement('canvas');
+                    c.width = 32; c.height = 32;
+                    c.getContext('2d').drawImage(img, 0, 0, 32, 32);
+                    URL.revokeObjectURL(objUrl);
+                    resolve(c);
+                };
+                img.onerror = function() { URL.revokeObjectURL(objUrl); reject(); };
+                img.src = objUrl;
+            });
+        }
+
+        function setFaviconFromUrl(url) {
+            var isDirectImage = /\.(ico|png|jpg|jpeg|gif|svg|webp)(\?|$)/i.test(url) || url.includes('s2/favicons') || url.includes('favicon.ico');
+            var faviconUrl;
+            if (isDirectImage) {
+                faviconUrl = url;
+            } else {
+                try {
+                    var domain = new URL(url.startsWith('http') ? url : 'https://' + url).hostname;
+                    faviconUrl = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=32';
+                } catch(e) {
+                    faviconUrl = url;
+                }
+            }
+            document.querySelectorAll("link[rel*='icon']").forEach(function(l) { l.remove(); });
+            var l = document.createElement('link');
+            l.rel = 'icon'; l.type = 'image/png'; l.href = faviconUrl;
+            document.head.appendChild(l);
+        }
+
+        function setDefaultFaviconWithAccent(accentColor) {
+            fetch(GL_FAVICON)
+                .then(function(r) { return r.blob(); })
+                .then(blobToCanvas)
+                .then(function(c) {
+                    var ctx = c.getContext('2d');
+                    ctx.globalCompositeOperation = 'source-atop';
+                    ctx.fillStyle = accentColor;
+                    ctx.fillRect(0, 0, 32, 32);
+                    ctx.globalCompositeOperation = 'source-over';
+                    applyDataUrlAsFavicon(c.toDataURL('image/png'));
+                })
+                .catch(function() {});
+        }
+
+        function resetToDefaultCloak() {
+            document.getElementById('cloak-title').value = '';
+            document.getElementById('cloak-icon').value = '';
+            document.title = 'GhostLink';
+            var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6ecbff';
+            setDefaultFaviconWithAccent(accent);
+            saveConfig();
+        }
+
         function applyCloak() {
-            const title = document.getElementById('cloak-title').value;
-            const icon = document.getElementById('cloak-icon').value;
+            var title = document.getElementById('cloak-title').value;
+            var icon = document.getElementById('cloak-icon').value;
             if (title) document.title = title;
-            // Remove all existing favicon links to force the browser to refresh <--- this is ai's best attempt to fix why it doesnt apply on my chromebook and I can't figure it out cuz it works on my pc lol💀
-            document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
+            if (title === 'about:blank' && !icon) {
+                document.querySelectorAll("link[rel*='icon']").forEach(function(l) { l.remove(); });
+                saveConfig();
+                return;
+            }
             if (icon) {
-                const link = document.createElement('link');
-                link.rel = 'shortcut icon';
-                link.type = 'image/x-icon';
-                link.href = icon;
-                document.head.appendChild(link);
+                setFaviconFromUrl(icon);
+            } else {
+                var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6ecbff';
+                setDefaultFaviconWithAccent(accent);
             }
             saveConfig();
         }
@@ -3650,6 +3848,8 @@
             document.documentElement.style.setProperty('--accent-glow', color + '4D');
             document.documentElement.style.setProperty('--font', fontToApply);
             try { document.getElementById('theme-picker').value = color; } catch(e) {}
+            const cloakIcon = document.getElementById('cloak-icon')?.value;
+            if (!cloakIcon) setDefaultFaviconWithAccent(color);
             applyTextColors();
             sendThemeToNtTabs();
             saveConfig();
@@ -3722,7 +3922,6 @@
             }
         }
 
-        // --- UTILS ---
         function updateClock() {
             const now = new Date();
             const clockEl = document.getElementById('home-clock');
@@ -3781,13 +3980,7 @@
         }
 
         window.onload = () => {
-            const presetList = document.getElementById('preset-list');
-            tabPresets.forEach((p, i) => {
-                const btn = document.createElement('div');
-                btn.className = 'preset-btn'; btn.innerText = p.name;
-                btn.onclick = () => usePreset(i);
-                presetList.appendChild(btn);
-            });
+            renderPresets();
 
             const iconLib = document.getElementById('icon-library');
             svgLibrary.forEach((svg) => {
@@ -3823,7 +4016,6 @@
                 if (saved.clockFormat) document.getElementById('clock-format-select').value = saved.clockFormat;
                 if (saved.dateFormat) document.getElementById('date-format-select').value = saved.dateFormat;
 
-                // Restore text colors
                 if (saved.textPrimary) document.getElementById('text-primary-picker').value = saved.textPrimary;
                 if (saved.textDim) document.getElementById('text-dim-picker').value = saved.textDim;
                 applyTextColors();
@@ -3835,8 +4027,21 @@
                 applyBackground('blur', saved.bgBlur || "0");
                 applyBackground('brightness', saved.bgBright || "100");
             } else {
+                applyCloak();
                 applyBackground('color', '#000000');
             }
+
+            setTimeout(function() {
+                var icon = document.getElementById('cloak-icon').value;
+                var title = document.getElementById('cloak-title').value;
+                if (title === 'about:blank' && !icon) return;
+                if (icon) {
+                    setFaviconFromUrl(icon);
+                } else {
+                    var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6ecbff';
+                    setDefaultFaviconWithAccent(accent);
+                }
+            }, 1000);
 
             syncShortcutUI();
 
@@ -3896,7 +4101,6 @@
                 });
             }
             initTotalVisits();
-            initOnlineUsers();
             checkForUpdates();
         };
 
@@ -3917,7 +4121,6 @@
             }, '*');
         }
 
-        // Collect all current :root CSS vars and push them to every open NT tab iframe
         function sendThemeToNtTabs() {
             if (typeof tabs === 'undefined' || !tabs.length) return;
             const s = getComputedStyle(document.documentElement);
@@ -3948,13 +4151,11 @@
             if (event.data.type === 'GHOSTLINK_QUERY_THEME') {
                 sendThemeToIframe();
             }
-            // A freshly loaded NT tab signals it is ready — push the current theme to it immediately
             if (event.data.type === 'GHOSTLINK_NT_READY') {
                 sendThemeToNtTabs();
             }
         });
 
-        // --- UPDATE CHECKER ---
         async function checkForUpdates() {
             try {
                 const apiUrl = 'https://api.github.com/repos/virtuan4-max/ghostlinkhub/commits?path=ghostlinksinglefile.html&page=1&per_page=1';
@@ -4284,15 +4485,7 @@
             await _origNav(page, appData);
         };
 
-
-        // ══════════════════════════════════════════════════════════════
-        // PROXY BROWSER — Full index.html JavaScript integrated
-        // Initialized lazily when user navigates to the Proxy tab.
-        // ══════════════════════════════════════════════════════════════
-
         let proxyBrowserInitialized = false;
-
-        // WISP servers are fetched from the remote hub; placeholders until loaded
         let WISP_SERVERS = [];
         let DEFAULT_WISP = window.SITE_CONFIG?.defaultWisp ?? null;
 
@@ -4316,17 +4509,12 @@
             }
         }
 
-        // Helper to get all servers (config + custom)
         function getAllWispServers() {
             const customWisps = getStoredWisps();
             return [...WISP_SERVERS, ...customWisps];
         }
 
-        // =====================================================
-        // PROACTIVE SERVER HEALTH CHECKING
-        // =====================================================
 
-        // Ping a wisp server to check if it's responsive
         async function pingWispServer(url, timeout = 2000) {
             return new Promise((resolve) => {
                 const start = Date.now();
@@ -4355,16 +4543,12 @@
             });
         }
 
-        // Find the best (fastest working) server from the list
         async function findBestWispServer(servers, currentUrl) {
             if (!servers || servers.length === 0) return currentUrl;
 
-            // Ping all servers in parallel (faster than sequential)
             const results = await Promise.all(
                 servers.map(s => pingWispServer(s.url, 2000))
             );
-
-            // Filter to only working servers and sort by latency
             const working = results
                 .filter(r => r.success)
                 .sort((a, b) => a.latency - b.latency);
@@ -4372,12 +4556,9 @@
             if (working.length > 0) {
                 return working[0].url;
             }
-
-            // If none working, return current or first
             return currentUrl || servers[0]?.url;
         }
 
-        // Proactively check and switch to best server on init
         async function initializeWithBestServer() {
             const autoswitch = localStorage.getItem('wispAutoswitch') !== 'false';
             const allServers = getAllWispServers();
@@ -4388,7 +4569,6 @@
 
             const currentUrl = localStorage.getItem("proxServer") || DEFAULT_WISP;
             
-            // Check if current server is working, if not find a better one
             const currentCheck = await pingWispServer(currentUrl, 2000);
             
             if (currentCheck.success) {
@@ -4396,7 +4576,6 @@
                 return;
             }
 
-            // Current server is bad, find the fastest working server
             console.log("Init: Current server not responding, finding better server...");
             const best = await findBestWispServer(allServers, currentUrl);
             
@@ -4408,14 +4587,9 @@
             }
         }
 
-        // =====================================================
-        // BROWSER STATE
-        // =====================================================
-        // NOTE: window.BareMux is set by a <script type="module"> which is deferred.
-        // We must NOT capture it here (parse time) — read it lazily at call time instead.
+
         const getBareMux = () => window.BareMux ?? null;
 
-        // SINGLETON: Shared resources for all tabs (prevents connection exhaustion)
         let sharedScramjet = null;
         let sharedConnection = null;
         let sharedConnectionReady = false;
@@ -4424,9 +4598,7 @@
         let activeTabId = null;
         let nextTabId = 1;
 
-        // =====================================================
-        // UTILITIES
-        // =====================================================
+
         const getBasePath = () => {
             const basePath = location.pathname.replace(/[^/]*$/, '');
             return basePath.endsWith('/') ? basePath : basePath + '/';
@@ -4445,9 +4617,7 @@
             }
         };
 
-        // =====================================================
-        // INITIALIZATION
-        // =====================================================
+
         async function getSharedScramjet() {
             if (sharedScramjet) return sharedScramjet;
 
@@ -4470,11 +4640,9 @@
             try {
                 await sharedScramjet.init();
             } catch (err) {
-                // Handle IndexedDB schema errors by clearing cache and retrying
                 if (err.message && err.message.includes('IDBDatabase') || err.message && err.message.includes('object stores')) {
                     console.warn('Scramjet IndexedDB error, clearing cache and retrying...');
                     
-                    // Clear IndexedDB for Scramjet
                     try {
                         const dbNames = ['scramjet-data', 'scrambase', 'ScramjetData'];
                         for (const dbName of dbNames) {
@@ -4486,7 +4654,6 @@
                         console.warn('Failed to clear IndexedDB:', clearErr);
                     }
                     
-                    // Reset shared instance and retry
                     sharedScramjet = null;
                     return getSharedScramjet();
                 }
@@ -4501,7 +4668,6 @@
 
             const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
             
-            // Read BareMux lazily — window.BareMux is set by the deferred module import
             const BM = getBareMux();
             if (!BM) throw new Error("BareMux not loaded yet. The bare-mux module import may have failed.");
 
@@ -4520,15 +4686,15 @@
                 <div class="browser-container">
                     <div class="browser-tabs" id="tabs-container"></div>
                     <div class="proxy-nav">
-                        <button id="back-btn" title="Back"><i class="fa-solid fa-chevron-left"></i></button>
-                        <button id="fwd-btn" title="Forward"><i class="fa-solid fa-chevron-right"></i></button>
-                        <button id="reload-btn" title="Reload"><i class="fa-solid fa-rotate-right"></i></button>
+                        <button id="back-btn" title="Back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+                        <button id="fwd-btn" title="Forward"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+                        <button id="reload-btn" title="Reload"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                         <div class="address-wrapper">
                             <input class="bar" id="address-bar" autocomplete="off" placeholder="Search or enter URL">
-                            <button id="home-btn-nav" title="Home"><i class="fa-solid fa-house"></i></button>
+                            <button id="home-btn-nav" title="Home"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
                         </div>
-                        <button id="devtools-btn" title="DevTools"><i class="fa-solid fa-code"></i></button>
-                        <button id="wisp-settings-btn" title="Proxy Settings"><i class="fa-solid fa-gear"></i></button>
+                        <button id="devtools-btn" title="DevTools"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+                        <button id="wisp-settings-btn" title="Proxy Settings"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
                     </div>
                     <div class="loading-bar-container"><div class="loading-bar" id="loading-bar"></div></div>
                     <div class="iframe-container" id="iframe-container">
@@ -4549,7 +4715,6 @@
                     </div>
                 </div>`;
 
-            // Cache DOM elements
             const elements = {
                 backBtn: document.getElementById('back-btn'),
                 fwdBtn: document.getElementById('fwd-btn'),
@@ -4558,9 +4723,42 @@
                 skipBtn: document.getElementById('skip-btn')
             };
 
-            // Bind navigation events
-            elements.backBtn.onclick = () => getActiveTab()?.frame.back();
-            elements.fwdBtn.onclick = () => getActiveTab()?.frame.forward();
+            elements.backBtn.onclick = () => {
+                const tab = getActiveTab();
+                if (!tab || tab.historyIndex <= 0) return; 
+                tab._navigating = true;
+                tab.historyIndex--;
+                const target = tab.historyStack[tab.historyIndex];
+                if (target === 'newtab') {
+                    tab.frame.frame.src = window.__ntBlobURL;
+                    tab.title = "New Tab";
+                    tab.url = "";
+                    tab.favicon = null;
+                    updateTabsUI();
+                    updateAddressBar();
+                } else {
+                    tab.frame.go(target);
+                }
+                setTimeout(() => { tab._navigating = false; }, 500);
+            };
+            elements.fwdBtn.onclick = () => {
+                const tab = getActiveTab();
+                if (!tab || tab.historyIndex >= tab.historyStack.length - 1) return; 
+                tab._navigating = true;
+                tab.historyIndex++;
+                const target = tab.historyStack[tab.historyIndex];
+                if (target === 'newtab') {
+                    tab.frame.frame.src = window.__ntBlobURL;
+                    tab.title = "New Tab";
+                    tab.url = "";
+                    tab.favicon = null;
+                    updateTabsUI();
+                    updateAddressBar();
+                } else {
+                    tab.frame.go(target);
+                }
+                setTimeout(() => { tab._navigating = false; }, 500);
+            };
             elements.reloadBtn.onclick = () => getActiveTab()?.frame.reload();
             document.getElementById('home-btn-nav').onclick = () => {
                 const tab = getActiveTab();
@@ -4576,7 +4774,6 @@
             document.getElementById('devtools-btn').onclick = toggleDevTools;
             document.getElementById('wisp-settings-btn').onclick = openSettings;
 
-            // Skip button logic
             elements.skipBtn.onclick = () => {
                 const tab = getActiveTab();
                 if (tab) {
@@ -4585,23 +4782,31 @@
                 }
             };
 
-            // Address bar events
             elements.addrBar.onkeyup = (e) => e.key === 'Enter' && handleSubmit();
             elements.addrBar.onfocus = () => elements.addrBar.select();
 
-            // Handle navigation messages
             window.addEventListener('message', (e) => {
                 if (e.data?.type === 'navigate') handleSubmit(e.data.url);
+                if (e.data?.type === 'gl_open_tab' && e.data.url) {
+                    createTab(true);
+                    handleSubmit(e.data.url);
+                }
             });
 
             createTab(true);
             checkHashParameters();
+
+            window.addEventListener('resize', () => {
+                if (tabs.length > 0) updateTabsUI();
+            });
         }
 
-        // =====================================================
-        // TAB MANAGEMENT
-        // =====================================================
+
+        function canAddTab() {
+            return tabs.length < 12;
+        }
         function createTab(makeActive = true) {
+            if (!canAddTab()) return;
             const frame = sharedScramjet.createFrame();
             const tab = {
                 id: nextTabId++,
@@ -4611,14 +4816,23 @@
                 loading: false,
                 favicon: null,
                 skipTimeout: null,
-                loadStartTime: null
+                loadStartTime: null,
+                historyStack: ['newtab'],
+                historyIndex: 0,
+                _navigating: false  
             };
 
-            // Use the blob URL for NT.html instead of a file path
             frame.frame.src = window.__ntBlobURL;
 
             frame.addEventListener("urlchange", (e) => {
                 tab.url = e.url;
+
+                if (!tab._navigating) {
+                    tab.historyStack = tab.historyStack.slice(0, tab.historyIndex + 1);
+                    tab.historyStack.push(e.url);
+                    tab.historyIndex = tab.historyStack.length - 1;
+                }
+
                 tab.loading = true;
                 tab.loadStartTime = Date.now();
 
@@ -4646,8 +4860,6 @@
                     }
                 }, 200);
 
-                // Fallback: if the load event never fires (SPA/redirect navigation),
-                // auto-clear the loading state after 7 seconds so the spinner doesn't hang forever.
                 if (tab.loadFallbackTimeout) clearTimeout(tab.loadFallbackTimeout);
                 tab.loadFallbackTimeout = setTimeout(() => {
                     if (tab.loading) {
@@ -4670,11 +4882,26 @@
                 }
 
                 try {
+                    const cw = frame.frame.contentWindow;
+                    if (cw && cw.open !== cw.__glPatched) {
+                        const _origOpen = cw.open.bind(cw);
+                        cw.open = function(url, target, features) {
+                            if (url && url !== 'about:blank' && url !== '' && typeof url === 'string') {
+                                // Post to parent GhostLink to open as a new proxy tab
+                                window.postMessage({ type: 'gl_open_tab', url: url }, '*');
+                                return null;
+                            }
+                            return _origOpen(url, target, features);
+                        };
+                        cw.open.__glPatched = true;
+                    }
+                } catch(e) { /* cross-origin frame, scramjet handles it */ }
+
+                try {
                     const title = frame.frame.contentWindow.document.title;
                     if (title) tab.title = title;
                 } catch { }
 
-                // Check for NT blob URL or NT.html in href
                 const href = frame.frame.contentWindow?.location?.href || '';
                 if (href === window.__ntBlobURL || href.includes('NT.html')) {
                     tab.title = "New Tab";
@@ -4688,6 +4915,7 @@
             });
 
             tabs.push(tab);
+            frame.frame.setAttribute('referrerpolicy', 'no-referrer');
             document.getElementById("iframe-container").appendChild(frame.frame);
             if (makeActive) switchTab(tab.id);
             return tab;
@@ -4750,31 +4978,70 @@
             }
         }
 
+        let _dragSrcTabId = null;
+
         function updateTabsUI() {
             const container = document.getElementById("tabs-container");
+            if (!container) return;
             container.innerHTML = "";
 
             tabs.forEach(tab => {
                 const el = document.createElement("div");
                 el.className = `tab ${tab.id === activeTabId ? "active" : ""}`;
+                el.draggable = true;
+                el.dataset.tabId = tab.id;
 
-                const iconHtml = tab.loading 
+                const iconHtml = tab.loading
                     ? `<div class="tab-spinner"></div>`
-                    : tab.favicon 
+                    : tab.favicon
                         ? `<img src="${tab.favicon}" class="tab-favicon" onerror="this.style.display='none'">`
                         : '';
 
                 el.innerHTML = `${iconHtml}<span class="tab-title">${tab.title}</span><span class="tab-close">&times;</span>`;
                 el.onclick = () => switchTab(tab.id);
                 el.querySelector(".tab-close").onclick = (e) => { e.stopPropagation(); closeTab(tab.id); };
+
+                el.addEventListener("dragstart", (e) => {
+                    _dragSrcTabId = tab.id;
+                    e.dataTransfer.effectAllowed = "move";
+                    setTimeout(() => el.style.opacity = "0.4", 0);
+                });
+                el.addEventListener("dragend", () => {
+                    el.style.opacity = "";
+                    container.querySelectorAll(".tab").forEach(t => t.classList.remove("drag-over"));
+                });
+                el.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (tab.id !== _dragSrcTabId) el.classList.add("drag-over");
+                });
+                el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+                el.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    el.classList.remove("drag-over");
+                    if (_dragSrcTabId === null || _dragSrcTabId === tab.id) return;
+                    const fromIdx = tabs.findIndex(t => t.id === _dragSrcTabId);
+                    const toIdx = tabs.findIndex(t => t.id === tab.id);
+                    if (fromIdx === -1 || toIdx === -1) return;
+                    const [moved] = tabs.splice(fromIdx, 1);
+                    tabs.splice(toIdx, 0, moved);
+                    _dragSrcTabId = null;
+                    updateTabsUI();
+                });
+
                 container.appendChild(el);
             });
 
+
             const newBtn = document.createElement("button");
             newBtn.className = "new-tab";
-            newBtn.innerHTML = "<i class='fa-solid fa-plus'></i>";
+            newBtn.innerHTML = "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>";
+
+            newBtn.id = "new-tab-btn";
             newBtn.onclick = () => createTab(true);
             container.appendChild(newBtn);
+
+            newBtn.disabled = !canAddTab();
         }
 
         function updateAddressBar() {
@@ -4791,9 +5058,10 @@
             if (!input) return;
 
             if (!input.startsWith('http')) {
+                const savedEngine = localStorage.getItem('gl_search_engine') || 'https://duckduckgo.com/?q=';
                 input = input.includes('.') && !input.includes(' ') 
                     ? `https://${input}`
-                    : `https://www.bing.com/search?q=${encodeURIComponent(input)}`;
+                    : `${savedEngine}${encodeURIComponent(input)}`;
             }
             
             tab.loading = true;
@@ -4810,9 +5078,7 @@
             if (percent === 100) setTimeout(() => { bar.style.width = "0%"; }, 200);
         }
 
-        // =====================================================
-        // SETTINGS & WISP
-        // =====================================================
+
         function openSettings() {
             const modal = document.getElementById('wisp-settings-modal');
             modal.classList.remove('hidden');
@@ -4862,7 +5128,6 @@
                 checkServerHealth(server.url, item);
             });
 
-            // Add Autoswitch Toggle
             const isAutoswitch = localStorage.getItem('wispAutoswitch') !== 'false';
             const toggleContainer = document.createElement('div');
             toggleContainer.className = 'wisp-option';
@@ -4909,7 +5174,6 @@
             customWisps.push(newServer);
             localStorage.setItem('customWisps', JSON.stringify(customWisps));
             
-            // Switch to the newly added server
             setWisp(url);
             
             input.value = '';
@@ -4952,7 +5216,6 @@
                 dot.classList.add('status-success');
                 text.textContent = `${Date.now() - start}ms`;
             } catch {
-                // Fallback: quick WebSocket test
                 try {
                     const wsTest = new WebSocket(url);
                     wsTest.onopen = () => {
@@ -4985,12 +5248,8 @@
             setTimeout(() => location.reload(), 600);
         }
 
-        // =====================================================
-        // DEVTOOLS
-        // =====================================================
+
         function hideErudaEntryBtn(win) {
-            // Eruda renders its entry button inside a Shadow DOM, so <style> injection
-            // can't reach it. We must pierce the shadowRoot and manipulate the element directly.
             const attempt = (tries) => {
                 try {
                     const container = win.document.getElementById('eruda');
@@ -4998,7 +5257,6 @@
                         if (tries > 0) setTimeout(() => attempt(tries - 1), 80);
                         return;
                     }
-                    // Try direct child first, then shadow root
                     const root = container.shadowRoot || container;
                     const btn = root.querySelector('.eruda-entry-btn');
                     if (btn) {
@@ -5008,7 +5266,7 @@
                     }
                 } catch {}
             };
-            attempt(10); // retry up to 10×80ms = 800ms
+            attempt(10); 
         }
 
         function toggleDevTools() {
@@ -5016,10 +5274,8 @@
             const win = tab?.frame.frame.contentWindow;
             if (!win) return;
 
-            // If eruda is loaded, toggle its visibility
             if (win.eruda) {
                 const panel = win.eruda._shadowRoot || win.document.querySelector('.__chobitsu-hide__') || win.eruda._container;
-                // eruda stores its open state; use its own show/hide API
                 if (tab._erudaOpen) {
                     win.eruda.hide();
                     tab._erudaOpen = false;
@@ -5031,7 +5287,6 @@
                 return;
             }
 
-            // Load eruda for the first time then show it
             const script = win.document.createElement('script');
             script.src = "https://cdn.jsdelivr.net/npm/eruda";
             script.onload = () => {
@@ -5051,11 +5306,84 @@
             }
         }
 
-        // =====================================================
-        // MAIN PROXY INIT — called lazily when user opens Proxy tab
-        // =====================================================
+
         async function proxyInit() {
-            // Setup NT.html blob URL — inject all :root theme vars from the parent page
+            const root = document.getElementById('proxy-app');
+            const _piSteps = [
+                { id: 'pi-s1', label: 'Fetching server list' },
+                { id: 'pi-s2', label: 'Selecting fastest server' },
+                { id: 'pi-s3', label: 'Loading proxy engine' },
+                { id: 'pi-s4', label: 'Opening transport' },
+                { id: 'pi-s5', label: 'Registering service worker' },
+            ];
+            root.innerHTML = `
+                <div id="proxy-init-screen" style="
+                    display:flex; align-items:center; justify-content:center;
+                    width:100%; height:100%;
+                    background:var(--bg); font-family:var(--font);">
+                    <div style="
+                        text-align:center; max-width:340px; width:90%;
+                        padding:36px 32px;
+                        background:var(--card-bg);
+                        border:1px solid var(--accent);
+                        border-radius:16px;
+                        box-shadow:0 0 60px var(--accent-glow),0 0 20px rgba(0,0,0,0.8);
+                        backdrop-filter:blur(10px);">
+                        <div style="
+                            width:42px; height:42px; margin:0 auto 20px;
+                            border:3px solid var(--border);
+                            border-top-color:var(--accent);
+                            border-radius:50%;
+                            animation:spin 0.8s linear infinite;">
+                        </div>
+                        <div style="font-size:0.65rem; letter-spacing:3px; text-transform:uppercase; color:var(--accent); margin-bottom:20px; text-shadow:0 0 8px var(--accent-glow);">
+                            GHOSTLINK PROXY
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:10px; text-align:left;">
+                            ${_piSteps.map(s => `
+                                <div id="${s.id}" style="display:flex; align-items:center; gap:10px; font-size:0.78rem; color:var(--text-dim); transition:color 0.3s;">
+                                    <span id="${s.id}-icon" style="
+                                        width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+                                        border:1.5px solid var(--border); border-radius:50%; font-size:0.6rem; color:var(--text-dim); transition:0.3s;">
+                                        ○
+                                    </span>
+                                    ${s.label}
+                                </div>`).join('')}
+                        </div>
+                        <div id="pi-bar-wrap" style="
+                            height:3px; background:var(--border); border-radius:2px; margin-top:22px; overflow:hidden;">
+                            <div id="pi-bar" style="
+                                height:100%; width:0%; background:var(--accent);
+                                box-shadow:0 0 6px var(--accent-glow);
+                                transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+                                border-radius:2px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+            const _piMark = (stepId, state) => {
+                const row = document.getElementById(stepId);
+                const icon = document.getElementById(stepId + '-icon');
+                const bar = document.getElementById('pi-bar');
+                if (!row || !icon) return;
+                const idx = _piSteps.findIndex(s => s.id === stepId);
+                if (state === 'active') {
+                    row.style.color = 'var(--text-primary)';
+                    icon.textContent = '◌';
+                    icon.style.borderColor = 'var(--accent)';
+                    icon.style.color = 'var(--accent)';
+                    if (bar) bar.style.width = ((idx / _piSteps.length) * 100) + '%';
+                } else if (state === 'done') {
+                    row.style.color = 'var(--accent)';
+                    icon.textContent = '✓';
+                    icon.style.borderColor = 'var(--accent)';
+                    icon.style.color = 'var(--accent)';
+                    icon.style.background = 'rgba(110,203,255,0.12)';
+                    if (bar) bar.style.width = (((idx + 1) / _piSteps.length) * 100) + '%';
+                }
+            };
+
             const ntTemplate = document.getElementById('nt-html-template');
             const _ntStyles = getComputedStyle(document.documentElement);
             const _ntGetVar = (v) => _ntStyles.getPropertyValue(v).trim();
@@ -5082,19 +5410,26 @@
             window.__ntBlobURL = URL.createObjectURL(ntBlob);
 
             try {
-                // Load remote wisp server list first
+                _piMark('pi-s1', 'active');
                 await fetchWispServers();
+                _piMark('pi-s1', 'done');
 
-                // Proactively find the best server before initializing
+                _piMark('pi-s2', 'active');
                 await initializeWithBestServer();
-                
+                _piMark('pi-s2', 'done');
+
+                _piMark('pi-s3', 'active');
                 await getSharedScramjet();
+                _piMark('pi-s3', 'done');
+
+                _piMark('pi-s4', 'active');
                 await getSharedConnection();
+                _piMark('pi-s4', 'done');
 
                 if ('serviceWorker' in navigator) {
+                    _piMark('pi-s5', 'active');
                     const reg = await navigator.serviceWorker.register(getBasePath() + 'sw.js', { scope: getBasePath() });
                     
-                    // Wait for SW to be ready
                     await navigator.serviceWorker.ready;
                     
                     const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
@@ -5108,7 +5443,6 @@
                         autoswitch: autoswitch
                     };
 
-                    // Send config to SW
                     const sendConfig = async () => {
                         const sw = reg.active || navigator.serviceWorker.controller;
                         if (sw) {
@@ -5116,8 +5450,6 @@
                             sw.postMessage(swConfig);
                         }
                     };
-
-                    // Try sending immediately, then retry if needed
                     sendConfig();
                     setTimeout(sendConfig, 500);
                     setTimeout(sendConfig, 1500);
@@ -5135,12 +5467,12 @@
                     });
 
                     reg.update();
+                    _piMark('pi-s5', 'done');
                 }
 
                 await initializeBrowser();
             } catch (err) {
                 console.error("Proxy initialization error:", err);
-                // Show error to user if initialization fails
                 const root = document.getElementById('proxy-app');
                 if (root) {
                     root.innerHTML = `
