@@ -17,9 +17,34 @@
             --accent-color: #6ecbff;
             --accent-glow: rgba(110, 203, 255, 0.3);
             --bg-dark: #000000;
-            --bg-panel: #050505;
             --text-main: #ffffff;
             --sidebar-width: 220px;
+            --bg-overlay-70: rgba(0, 0, 0, 0.7);
+            --bg-message: rgba(255, 255, 255, 0.03);
+            --text-faded-75: rgba(255, 255, 255, 0.75);
+            --accent-alpha-04: rgba(110, 203, 255, 0.04);
+            --accent-alpha-05: rgba(110, 203, 255, 0.05);
+            --accent-alpha-08: rgba(110, 203, 255, 0.08);
+            --accent-alpha-10: rgba(110, 203, 255, 0.10);
+            --accent-alpha-12: rgba(110, 203, 255, 0.12);
+            --accent-alpha-15: rgba(110, 203, 255, 0.15);
+            --accent-alpha-20: rgba(110, 203, 255, 0.20);
+            --accent-alpha-30: rgba(110, 203, 255, 0.30);
+            --accent-alpha-40: rgba(110, 203, 255, 0.40);
+            --accent-alpha-50: rgba(110, 203, 255, 0.50);
+            --color-dot-inactive: #333;
+            --color-error: #ff4e4e;
+            --color-error-light: #ff8888;
+            --color-warning: #ffcc00;
+            --text-muted: #aaa;
+            --text-subtle: #ccc;
+            --error-alpha-00: rgba(255, 78, 78, 0);
+            --error-alpha-08: rgba(255, 78, 78, 0.08);
+            --error-alpha-10: rgba(255, 78, 78, 0.10);
+            --error-alpha-15: rgba(255, 78, 78, 0.15);
+            --error-alpha-30: rgba(255, 78, 78, 0.30);
+            --error-alpha-40: rgba(255, 78, 78, 0.40);
+            --error-alpha-50: rgba(255, 78, 78, 0.50);
         }
 
         body, html {
@@ -68,33 +93,31 @@
 
         #key-status-dot {
             width: 8px; height: 8px; border-radius: 50%;
-            background: #333; display: inline-block;
-            box-shadow: 0 0 6px currentColor;
-            transition: background 0.4s, box-shadow 0.4s;
+            background: var(--color-dot-inactive); display: inline-block;
+            transition: background 0.4s;
         }
-        #key-status-dot.cloud  { background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
-        #key-status-dot.custom { background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
-        #key-status-dot.error  { background: #ff4e4e; box-shadow: 0 0 8px #ff4e4e; animation: blink 0.6s infinite; }
-        #key-status-dot.loading{ background: #ffcc00; box-shadow: 0 0 8px #ffcc00; animation: blink 1s infinite; }
+        #key-status-dot.cloud  { background: var(--accent-color); }
+        #key-status-dot.custom { background: var(--accent-color); }
+        #key-status-dot.error  { background: var(--color-error); animation: blink 0.6s infinite; }
+        #key-status-dot.loading{ background: var(--color-warning); animation: blink 1s infinite; }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
         #history-sidebar {
             position: fixed; top: 0; left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background: #030303;
-            border-right: 1px solid rgba(110,203,255,0.12);
+            background: var(--bg-dark);
+            border-right: 1px solid var(--accent-alpha-12);
             z-index: 1600;
             display: flex; flex-direction: column;
             transform: translateX(calc(-1 * var(--sidebar-width)));
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 4px 0 30px rgba(0,0,0,0.8);
         }
         #history-sidebar.open { transform: translateX(0); }
 
         .sidebar-header {
             padding: 22px 16px 14px;
-            border-bottom: 1px solid rgba(110,203,255,0.08);
+            border-bottom: 1px solid var(--accent-alpha-08);
             display: flex; align-items: center; justify-content: space-between;
             flex-shrink: 0;
         }
@@ -115,7 +138,7 @@
             display: flex; flex-direction: column; gap: 4px;
         }
         .history-empty {
-            font-size: 11px; color: rgba(110,203,255,0.3);
+            font-size: 11px; color: var(--accent-alpha-30);
             text-align: center; padding: 30px 10px; letter-spacing: 1px;
         }
         .history-item {
@@ -123,23 +146,23 @@
             border-radius: 6px; cursor: pointer;
             transition: background 0.15s; border: 1px solid transparent; overflow: hidden;
         }
-        .history-item:hover { background: rgba(110,203,255,0.05); border-color: rgba(110,203,255,0.1); }
-        .history-item.active { background: rgba(110,203,255,0.08); border-color: rgba(110,203,255,0.2); }
+        .history-item:hover { background: var(--accent-alpha-05); border-color: var(--accent-alpha-10); }
+        .history-item.active { background: var(--accent-alpha-08); border-color: var(--accent-alpha-20); }
         .history-item-label {
             flex: 1; padding: 9px 10px;
-            font-size: 11px; color: rgba(255,255,255,0.75);
+            font-size: 11px; color: var(--text-faded-75);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px;
         }
         .history-item.active .history-item-label { color: var(--accent-color); }
         .history-delete {
-            padding: 9px 8px; color: rgba(255,78,78,0);
+            padding: 9px 8px; color: var(--error-alpha-00);
             font-size: 13px; cursor: pointer;
             transition: color 0.15s, background 0.15s;
             flex-shrink: 0; border-radius: 0 6px 6px 0;
             display: flex; align-items: center; justify-content: center;
         }
-        .history-item:hover .history-delete { color: rgba(255,78,78,0.5); }
-        .history-delete:hover { color: #ff4e4e !important; background: rgba(255,78,78,0.1); }
+        .history-item:hover .history-delete { color: var(--error-alpha-50); }
+        .history-delete:hover { color: var(--color-error) !important; background: var(--error-alpha-10); }
 
         #sidebar-backdrop {
             display: none; position: fixed; inset: 0; z-index: 1400;
@@ -149,27 +172,27 @@
         #settings-modal, #info-modal {
             display: none; position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+            background: var(--bg-dark); backdrop-filter: blur(5px);
             z-index: 3000; justify-content: center; align-items: center;
         }
         .modal-content {
-            background: var(--bg-panel); border: 1px solid var(--accent-color);
+            background: var(--bg-dark); border: 1px solid var(--accent-color);
             width: 520px; max-width: 95%; padding: 0;
-            border-radius: 12px; box-shadow: 0 0 30px var(--accent-glow); overflow: hidden;
+            border-radius: 12px; overflow: hidden;
         }
-        .modal-tabs { display: flex; border-bottom: 1px solid rgba(110,203,255,0.1); }
+        .modal-tabs { display: flex; border-bottom: 1px solid var(--accent-alpha-10); }
         .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 12px; opacity: 0.6; }
-        .tab.active { opacity: 1; border-bottom: 2px solid var(--accent-color); background: rgba(110,203,255,0.05); }
+        .tab.active { opacity: 1; border-bottom: 2px solid var(--accent-color); background: var(--accent-alpha-05); }
         .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
         .setting-field { margin-bottom: 20px; }
         .setting-field label { display: block; font-size: 11px; margin-bottom: 8px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; }
         .setting-field input, .setting-field textarea, .setting-field select {
-            width: 100%; background: #0a0a0a; border: 1px solid rgba(110,203,255,0.3); color: #fff;
+            width: 100%; background: var(--bg-dark); border: 1px solid var(--accent-alpha-30); color: var(--text-main);
             padding: 10px; font-family: inherit; box-sizing: border-box; outline: none; border-radius: 4px;
         }
-        .setting-field input:focus { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-glow); }
+        .setting-field input:focus { border-color: var(--accent-color); }
         .setting-field input:disabled { opacity: 0.35; cursor: not-allowed; }
-        .modal-footer { display: flex; gap: 10px; padding: 20px; background: rgba(0,0,0,0.3); }
+        .modal-footer { display: flex; gap: 10px; padding: 20px; background: var(--bg-dark); }
         .modal-btn { flex: 1; padding: 12px; border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); cursor: pointer; font-family: inherit; border-radius: 4px; transition: 0.2s; font-size: 12px; }
         .modal-btn.primary { background: var(--accent-color); color: #000; font-weight: bold; }
         .modal-btn:hover { background: var(--accent-glow); }
@@ -180,20 +203,20 @@
         .toggle-label-text { font-size: 11px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; }
         .toggle-switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; inset: 0; background: #1a1a1a; border: 1px solid rgba(110,203,255,0.3); border-radius: 22px; cursor: pointer; transition: 0.3s; }
+        .toggle-slider { position: absolute; inset: 0; background: var(--bg-dark); border: 1px solid var(--accent-alpha-30); border-radius: 22px; cursor: pointer; transition: 0.3s; }
         .toggle-slider:before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; top: 3px; background: var(--accent-color); border-radius: 50%; transition: 0.3s; opacity: 0.4; }
-        input:checked + .toggle-slider { border-color: var(--accent-color); background: rgba(110,203,255,0.1); }
+        input:checked + .toggle-slider { border-color: var(--accent-color); background: var(--accent-alpha-10); }
         input:checked + .toggle-slider:before { transform: translateX(20px); opacity: 1; }
 
         .key-info-box {
-            background: rgba(110,203,255,0.04); border: 1px solid rgba(110,203,255,0.15);
+            background: var(--accent-alpha-04); border: 1px solid var(--accent-alpha-15);
             border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;
-            font-size: 11px; color: #aaa; line-height: 1.7;
+            font-size: 11px; color: var(--text-muted); line-height: 1.7;
         }
         .key-info-box strong { color: var(--accent-color); }
         .cloud-key-controls { display: flex; gap: 10px; margin-top: 10px; }
         .cloud-key-controls .modal-btn { flex: none; font-size: 11px; padding: 8px 14px; }
-        .setting-divider { border: none; border-top: 1px solid rgba(110,203,255,0.1); margin: 16px 0; }
+        .setting-divider { border: none; border-top: 1px solid var(--accent-alpha-10); margin: 16px 0; }
         .api-link { color: var(--accent-color); text-decoration: underline; cursor: pointer; }
 
         #rotation-badge {
@@ -213,7 +236,7 @@
         body.chat-active .center-wrapper {
             position: fixed; top: 0; left: 0; right: 0; z-index: 500;
             flex-grow: 0; height: 70px; flex-direction: row; justify-content: center;
-            padding: 0; border-bottom: 1px solid rgba(110,203,255,0.1);
+            padding: 0; border-bottom: 1px solid var(--accent-alpha-10);
             background: var(--bg-dark);
         }
         body.chat-active #response-viewport { padding-top: 70px; }
@@ -238,35 +261,35 @@
         }
 
         .user-message {
-            align-self: flex-end; color: #fff;
-            background: rgba(255,255,255,0.03); border: 1px solid var(--accent-color);
+            align-self: flex-end; color: var(--text-main);
+            background: var(--bg-message); border: 1px solid var(--accent-color);
             padding: 15px 20px; border-radius: 15px 15px 2px 15px;
-            max-width: 75%; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 75%;
         }
         .bot-message-wrapper { display: flex; align-items: flex-start; gap: 15px; align-self: flex-start; max-width: 85%; }
         .bot-content {
-            background: rgba(255,255,255,0.03); border: 1px solid var(--accent-color);
+            background: var(--bg-message); border: 1px solid var(--accent-color);
             padding: 18px 22px; border-radius: 2px 15px 15px 15px; width: 100%;
         }
         .bot-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .bot-label { font-size: 10px; color: var(--accent-color); opacity: 0.8; font-weight: bold; letter-spacing: 2px; }
         .text-body { line-height: 1.6; color: var(--text-main); font-size: 15px; }
         .text-body p { margin-bottom: 10px; }
-        .text-body pre { background: #0a0a0a; padding: 12px; border: 1px solid var(--accent-glow); border-radius: 6px; overflow-x: auto; margin: 10px 0; }
-        .text-body code { font-family: monospace; background: rgba(110,203,255,0.1); padding: 2px 4px; border-radius: 3px; }
+        .text-body pre { background: var(--bg-dark); padding: 12px; border: 1px solid var(--accent-glow); border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+        .text-body code { font-family: monospace; background: var(--accent-alpha-10); padding: 2px 4px; border-radius: 3px; }
 
         .rate-limit-banner {
-            background: rgba(255,78,78,0.08); border: 1px solid rgba(255,78,78,0.4);
-            border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #ff8888;
+            background: var(--error-alpha-08); border: 1px solid var(--error-alpha-40);
+            border-radius: 8px; padding: 12px 16px; font-size: 12px; color: var(--color-error-light);
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
         }
         .rate-limit-banner span { flex: 1; }
         .switch-key-btn {
-            background: rgba(255,78,78,0.15); border: 1px solid rgba(255,78,78,0.5);
-            color: #ff8888; padding: 6px 12px; border-radius: 4px; cursor: pointer;
+            background: var(--error-alpha-15); border: 1px solid var(--error-alpha-50);
+            color: var(--color-error-light); padding: 6px 12px; border-radius: 4px; cursor: pointer;
             font-family: inherit; font-size: 11px; letter-spacing: 1px; white-space: nowrap; transition: 0.2s;
         }
-        .switch-key-btn:hover { background: rgba(255,78,78,0.3); }
+        .switch-key-btn:hover { background: var(--error-alpha-30); }
 
         .search-area-wrapper {
             position: fixed; bottom: 0; left: 0; right: 0;
@@ -276,15 +299,14 @@
         .preview-container { width: 700px; max-width: 92%; display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
         .preview-item { position: relative; width: 50px; height: 50px; border: 1px solid var(--accent-color); border-radius: 4px; overflow: hidden; }
         .preview-item img { width: 100%; height: 100%; object-fit: cover; }
-        .remove-img { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.7); color: #ff4e4e; font-size: 10px; cursor: pointer; padding: 0 3px; }
+        .remove-img { position: absolute; top: 0; right: 0; background: var(--bg-overlay-70); color: var(--color-error); font-size: 10px; cursor: pointer; padding: 0 3px; }
         .search-bar {
             width: 700px; max-width: 92%; background-color: var(--bg-dark); border: 1px solid var(--accent-color);
             border-radius: 14px; padding: 12px 20px; display: flex; align-items: center; gap: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 10px var(--accent-glow);
         }
         .upload-btn { cursor: pointer; color: var(--accent-color); font-size: 22px; font-weight: bold; line-height: 1; transition: 0.2s; user-select: none; display: flex; align-items: center; justify-content: center; }
         .upload-btn:hover { transform: scale(1.2); text-shadow: 0 0 10px var(--accent-color); }
-        .search-bar input { background: none; border: none; color: #fff; font-size: 16px; flex-grow: 1; outline: none; font-family: inherit; }
+        .search-bar input { background: none; border: none; color: var(--text-main); font-size: 16px; flex-grow: 1; outline: none; font-family: inherit; }
         .search-bar input::placeholder { color: var(--accent-color); opacity: 0.4; }
         .search-bar input:disabled { opacity: 0.5; cursor: not-allowed; }
         .send-btn { cursor: pointer; color: var(--accent-color); font-size: 20px; transition: 0.2s; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
@@ -354,12 +376,12 @@
                             <button class="modal-btn" onclick="pickRandomCloudKey()" id="random-key-btn">⟳ Random Key</button>
                             <button class="modal-btn" onclick="refetchCloudKeys()" id="refetch-btn">↺ Reload Vault</button>
                         </div>
-                        <div id="cloud-key-count" style="margin-top: 8px; font-size: 10px; color: rgba(110,203,255,0.5);"></div>
+                        <div id="cloud-key-count" style="margin-top: 8px; font-size: 10px; color: var(--accent-alpha-50);"></div>
                     </div>
                     <div id="custom-key-section" style="display:none;">
                         <label>Groq API Key</label>
                         <input type="password" id="key-field" placeholder="gsk_..." onchange="saveCustomApiKey(this.value)">
-                        <div style="font-size: 10px; color: rgba(110,203,255,0.4); margin-top: 6px;">
+                        <div style="font-size: 10px; color: var(--accent-alpha-40); margin-top: 6px;">
                             Key stored locally. <a href="https://console.groq.com/keys" target="_blank" class="api-link">Get a key →</a>
                         </div>
                     </div>
@@ -434,7 +456,7 @@
         </div>
         <div class="modal-body">
             <h3 style="font-size: 14px; color: var(--accent-color);">GHOSTLINK INTERFACE</h3>
-            <p style="font-size: 12px; line-height: 1.5; color: #ccc;">
+            <p style="font-size: 12px; line-height: 1.5; color: var(--text-subtle);">
                 <strong>WARNING</strong> : DO NOT DISCLOSE THE WEBSITE, API KEYS, OR ANY OTHER PROPERTY RELATING TO PROJECT BLUE PINNAPPLE.<br><br>
                 <strong>OVERVIEW:</strong> GhostLink is a terminal-style AI interface powered by the Groq API.<br><br>
                 <strong>USAGE:</strong> This website uses cloud-managed API keys fetched from a secure vault and rotated automatically. You can optionally supply your own key in Settings.<br><br>
@@ -481,30 +503,19 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────
-//  WORKER CONFIG
-// ─────────────────────────────────────────
+
 const WORKER_URL = "https://still-hill-b33b.virtuan4.workers.dev/";
 const WORKER_PASSWORD = "hello";
 const TOTAL_WORKER_KEYS = 10;
 
-// ─────────────────────────────────────────
-//  KEY VAULT STATE
-// ─────────────────────────────────────────
 let cloudKeys = [];
 let cloudKeyIndex = 0;
 let useCustomKey = false;
 
-// ─────────────────────────────────────────
-//  CHAT HISTORY STATE
-// ─────────────────────────────────────────
 const HISTORY_STORAGE_KEY = 'gl_chat_sessions';
 let sessions = [];
 let activeSessionId = null;
 
-// ─────────────────────────────────────────
-//  DOM REFS
-// ─────────────────────────────────────────
 const inputField    = document.getElementById('chat-input');
 const responseBox   = document.getElementById('response-container');
 const viewport      = document.getElementById('response-viewport');
@@ -539,9 +550,6 @@ const presets = {
     learn:  { color: '#00ff41', prompt: 'You are GhostLink, an AI for creativity, learning and studying.' }
 };
 
-// ─────────────────────────────────────────
-//  THEME SYNC
-// ─────────────────────────────────────────
 function syncGhostLinkTheme() {
     if (window.self !== window.top) {
         window.addEventListener('message', (event) => {
@@ -558,9 +566,6 @@ function syncGhostLinkTheme() {
 }
 document.addEventListener('DOMContentLoaded', syncGhostLinkTheme);
 
-// ─────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────
 async function init() {
     applyPreset('ghost');
     loadSessionsFromStorage();
@@ -580,9 +585,6 @@ async function init() {
     }
 }
 
-// ─────────────────────────────────────────
-//  SESSION / HISTORY MANAGEMENT
-// ─────────────────────────────────────────
 function loadSessionsFromStorage() {
     try {
         const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -680,16 +682,10 @@ function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─────────────────────────────────────────
-//  SIDEBAR
-// ─────────────────────────────────────────
 function toggleSidebar() { sidebar.classList.contains('open') ? closeSidebar() : openSidebar(); }
 function openSidebar()  { sidebar.classList.add('open');    backdrop.classList.add('visible'); }
 function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('visible'); }
 
-// ─────────────────────────────────────────
-//  NEW CHAT
-// ─────────────────────────────────────────
 function startNewChat() {
     updateActiveSession();
     _clearChatUI();
@@ -704,9 +700,6 @@ function _clearChatUI() {
     isFirstMessage = true;
 }
 
-// ─────────────────────────────────────────
-//  CLOUD KEY FETCHING
-// ─────────────────────────────────────────
 async function fetchSingleKey(index) {
     const salt = "frontend-request-" + Math.floor(Math.random() * 1000);
     const url = new URL(WORKER_URL);
@@ -780,9 +773,6 @@ function forceNewCloudKey() {
     updateSessionStats();
 }
 
-// ─────────────────────────────────────────
-//  UI HELPERS
-// ─────────────────────────────────────────
 function setKeyStatus(state) { keyStatusDot.className = state; }
 function updateCloudKeyCount(msg) { const el = document.getElementById('cloud-key-count'); if (el) el.textContent = msg; }
 function updateSessionStats() {
@@ -798,9 +788,6 @@ function showRotationBadge() {
     showRotationBadge._timer = setTimeout(() => rotationBadge.classList.remove('visible'), 2000);
 }
 
-// ─────────────────────────────────────────
-//  KEY MODE TOGGLE
-// ─────────────────────────────────────────
 function onKeyModeToggle() {
     useCustomKey = document.getElementById('use-custom-key-toggle').checked;
     localStorage.setItem('gl_key_mode', useCustomKey ? 'custom' : 'cloud');
@@ -813,9 +800,6 @@ function renderKeyModeUI() {
 }
 function saveCustomApiKey(val) { localStorage.setItem('groq_api_key', val); }
 
-// ─────────────────────────────────────────
-//  SETTINGS / MODAL
-// ─────────────────────────────────────────
 function updateAccentColor(hex) {
     document.documentElement.style.setProperty('--accent-color', hex);
     const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
@@ -831,9 +815,6 @@ function switchTab(tabId) {
 function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// ─────────────────────────────────────────
-//  CHAT CORE
-// ─────────────────────────────────────────
 inputField.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !isGenerating) sendMessage(); });
 function handleAction() { isGenerating ? stopGeneration() : sendMessage(); }
 function stopGeneration() {
@@ -952,7 +933,7 @@ async function sendMessage() {
                 botWrapper.remove();
                 appendRateLimitBanner(`Rate limit hit on key ${cloudKeyIndex + 1}. Switch to a different cloud key and retry. Adding a key would most likely solve this problem.`, true);
             } else {
-                textBody.innerHTML = `<span style="color:#ff4e4e;">ERROR: ${e.message} — Adding a key in Settings would most likely solve this problem.</span>`;
+                textBody.innerHTML = `<span style="color:var(--color-error);">ERROR: ${e.message} — Adding a key in Settings would most likely solve this problem.</span>`;
                 selectedFiles = currentFilesBackup;
                 renderPreviews();
             }
@@ -1013,9 +994,6 @@ async function streamResponse(element, text) {
     element.innerHTML = marked.parse(text);
 }
 
-// ─────────────────────────────────────────
-//  MISC
-// ─────────────────────────────────────────
 function applyPreset(key) {
     const p = presets[key];
     updateAccentColor(p.color);
