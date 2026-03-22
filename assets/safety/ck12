@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>CK12-Foundation</title>
+	<link rel="preload" as="font" href="//www.ck12.org/media/build-20260320020558/common/font/proximanova/regular.woff" type="font/woff2"
+		crossorigin="anonymous" />
+	<link rel="icon" type="image/x-icon" href="//static.ck12.org/assets/favicon/favicon.ico" />
+	<link rel="icon" type="image/svg+xml" href="//static.ck12.org/assets/favicon/favicon.svg" />
+	<link rel="icon" type="image/png" sizes="96x96" href="//static.ck12.org/assets/favicon/favicon-96x96.png" />
+	<link rel="apple-touch-icon" href="//static.ck12.org/assets/favicon/apple-touch-icon.png" />
+
+	<!-- Common meta tags -->
+	<meta property="og:site_name" itemprop="name" name="author" content="CK-12 Foundation" />
+	<meta property="fb:app_id" content="159884644067996" />
+	<meta itemprop="url" content="https://www.ck12.org" />
+	<meta itemprop="telephone" content="(650) 494-1302" />
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1.0" />
+	<meta name="google-site-verification" content="wHx0f-Udlfd7ZNYNrIXpJVpjjO8nSH5RE0jIX8V-jIM" />
+	<meta name="google-translate-customization" content="" />
+	<meta name="application-name" content="CK-12 Foundation" />
+	<meta name="msapplication-TileColor" content="#003300" />
+	<meta name="msapplication-TileImage" content="//static.ck12.org/assets/favicon/web-app-manifest-192x192.png" />
+	<script src="/media/buildnumber.js"></script>
+	<script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "CK-12 Foundation",
+        "url": "https://www.ck12.org/",
+        "logo": "https://www.ck12.org/media/common/images/logo_ck12.svg",
+        "sameAs": [
+          "https://www.facebook.com/CK12Foundation",
+          "https://twitter.com/CK12Foundation",
+          "https://www.linkedin.com/company/ck-12-foundation/",
+          "https://www.pinterest.com/ck12foundation/"
+        ]
+      }
+    </script>
+	<!-- for prerendering -->
+	<script>
+		if (window.navigator.userAgent.toLowerCase().indexOf('prerender') !== -1) {
+			window.SC_DISABLE_SPEEDY = true;
+		}
+	</script>
+</head>
+
+<body style="margin: 0px; position: initial !important;">
+	<aside aria-hidden="true" role="complementary">
+		<img alt="" width="99999" height="99999" style="
+        pointer-events: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 99vw;
+        height: 99vh;
+        max-width: calc(99vw - (100vw - 100%));
+        max-height: 99vh;
+        display: block;
+        z-index: -999999999;
+      " src="https://static.ck12.org/common/lcp/lcpimage.png" />
+	</aside>
+	<div id="course-app" data-version="v2.11.13.20260320020558"></div>
+</body>
+<script src="//www.ck12.org/media/build-20260320020558/dexterjs/dexterjs.min.js"></script>
+<script language="JavaScript" type="text/javascript">
+	window.flxweb_media_path = "//www.ck12.org/media/build-20260320020558/";
+	if (window.dexterjs) {
+		window.dexterjs.set("config", {
+			clientID: 24839961,
+			trackPageTime: false,
+		});
+	}
+	window._ck12 = window.dexterjs;
+	window.google_one_tap_login = {
+		isEnabled: "true",
+		clientID: "824097203574.apps.googleusercontent.com",
+	};
+</script>
+<script type="text/javascript" src="https://www.ck12.org/loaders/www/fury.js" fetchpriority="high"></script>
+<script fetchpriority="high">
+	CK12FuryLoader.loadCSS("student");
+	CK12FuryLoader.load("student");
+</script>
+<script type="text/javascript" defer>
+	var links = [
+		`//www.ck12.org/media/build-20260320020558/common/font/proximanova/font-proximanova.min.css`,
+	];
+	for (var i = 0; i < links.length; i++) {
+		var link = document.createElement("link");
+		link.setAttribute("rel", "stylesheet");
+		link.setAttribute("type", "text/css");
+		link.setAttribute("href", links[i]);
+		document.getElementsByTagName("head")[0].appendChild(link);
+	}
+	/* Polyfill for forEach needed to support old Edge versions (fix for bug 68554) */
+	if (window.NodeList && !NodeList.prototype.forEach) {
+		NodeList.prototype.forEach = function (callback, thisArg) {
+			thisArg = thisArg || window;
+			for (var i = 0; i < this.length; i++) {
+				callback.call(thisArg, this[i], i, this);
+			}
+		};
+	}
+</script>
+<!-- Start Licence Dialog -->
+<script type="text/javascript" async src="https://static.ck12.org/licenceDialog/v1.0.10/main.js"></script>
+<!-- End Licence Dialog -->
+
+<script src="https://accounts.google.com/gsi/client" defer></script>
+
+<!-- Google Tag Manager -->
+<!--  -->
+<script>
+  // Google Tag Manager
+  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});let f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  '/metrics/?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','');
+  // End Google Tag Manager
+</script>
+<!-- End Google Tag Manager -->
+<!--  -->
+<script src="//www.ck12.org/media/build-20260320020558/outdatedbrowser/outdatedbrowser.js"></script>
+<script type="text/x-mathjax-config;" defer>
+    MathJax.Hub.Config({
+        messageStyle: "none",
+        extensions: ["tex2jax.js"],
+        jax: ["input/TeX","output/SVG"],
+        imageFont:null,
+        tex2jax: {inlineMath: [["@$","@$"]], displayMath: [ ['@$$','@$$'] ]},
+        TeX: {
+            extensions: ["cancel.js", "color.js", "autoload-all.js"]
+        },
+        menuSettings: { inTabOrder: false }
+    });
+    MathJax.Ajax.timeout = 45000;
+</script>
+
+</html>
