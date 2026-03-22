@@ -9,6 +9,34 @@
     const params = new URLSearchParams(window.location.search);
     if (params.get('accent')) document.documentElement.style.setProperty('--accent-color', params.get('accent'));
     if (params.get('bg')) document.documentElement.style.setProperty('--bg-dark', params.get('bg'));
+
+    // Auto-load Google Font if --font-family is set to a custom font name.
+    // Runs after the injected theme script (from index.html srcdoc injection) has fired.
+    function _tryLoadCustomFont() {
+        const fontVal = getComputedStyle(document.documentElement).getPropertyValue('--font-family').trim().replace(/^['"]|['"]$/g, '');
+        if (!fontVal) return;
+        // Generic/system font keywords that don't need a stylesheet
+        const systemFonts = ['monospace', 'serif', 'sans-serif', 'cursive', 'fantasy',
+            'courier new', 'arial', 'verdana', 'georgia', 'helvetica', 'tahoma',
+            'trebuchet ms', 'times new roman', 'impact', 'comic sans ms'];
+        const lower = fontVal.toLowerCase();
+        // If it contains a comma it's a full stack (preset); if it's a system font, skip
+        if (fontVal.includes(',') || systemFonts.some(f => lower === f || lower.startsWith(f + ','))) return;
+        // Bare custom font name — load from Google Fonts
+        const linkId = 'ai-custom-font-' + fontVal.replace(/\s+/g, '-');
+        if (!document.getElementById(linkId)) {
+            const link = document.createElement('link');
+            link.id = linkId;
+            link.rel = 'stylesheet';
+            link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontVal) + '&display=swap';
+            document.head.appendChild(link);
+        }
+        document.documentElement.style.setProperty('--font-family', fontVal);
+    }
+    // The injected theme script runs synchronously, so rAF after DOMContentLoaded is enough
+    document.addEventListener('DOMContentLoaded', function() {
+        requestAnimationFrame(_tryLoadCustomFont);
+    });
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -50,7 +78,7 @@
         body, html {
             background-color: var(--bg-dark);
             color: var(--accent-color);
-            font-family: 'Courier New', monospace;
+            font-family: var(--font-family, 'Courier New', monospace);
             padding: 0; margin: 0;
             height: 100vh;
             overflow: hidden;
